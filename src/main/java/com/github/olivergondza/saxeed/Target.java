@@ -24,7 +24,6 @@ public interface Target {
             this.file = path.toFile();
         }
 
-
         @Override
         public OutputStream getOutputStream() throws FailedWriting {
             try {

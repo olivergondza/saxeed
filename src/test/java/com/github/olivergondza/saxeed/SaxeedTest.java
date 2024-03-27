@@ -4,8 +4,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.xml.transform.stream.StreamResult;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,10 +36,10 @@ public class SaxeedTest {
 
     @Test
     void asIs() throws Exception {
-        class DeleteAll implements TransformationHandler.Visitor {
+        class DeleteAll implements UpdatingVisitor {
             @Override
-            public void startElement(TagVisit tag) {
-                tag.skip();
+            public void startTag(Tag.Start tag) {
+                tag.unwrap();
             }
         }
 

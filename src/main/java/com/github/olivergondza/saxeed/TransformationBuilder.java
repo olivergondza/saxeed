@@ -1,49 +1,42 @@
 package com.github.olivergondza.saxeed;
 
 import javax.xml.stream.XMLStreamWriter;
-import javax.xml.transform.Result;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class TransformationBuilder {
-    private final Map<String, List<TransformationHandler.Visitor>> tagToVisitors;
+    private final Map<String, List<UpdatingVisitor>> tagToVisitors = new HashMap<>();
 
     public TransformationBuilder() {
-        this(new HashMap<>());
     }
 
-    public TransformationBuilder(Map<String, List<TransformationHandler.Visitor>> tagToVisitors) {
-        this.tagToVisitors = tagToVisitors;
-    }
-
-    public TransformationBuilder put(String tagName, List<TransformationHandler.Visitor> visitors) {
-        tagToVisitors.put(tagName, visitors);
+    public TransformationBuilder put(String tagName, List<UpdatingVisitor> visitors) {
+        tagToVisitors.put(tagName, new ArrayList<>(visitors));
         return this;
     }
 
-    public TransformationBuilder put(String tagName, TransformationHandler.Visitor visitor) {
-        tagToVisitors.put(tagName, new ArrayList<>(List.of(visitor)));
-        return this;
+    public TransformationBuilder put(String tagName, UpdatingVisitor visitor) {
+        return put(tagName, List.of(visitor));
     }
 
-    public TransformationBuilder add(String tagName, List<TransformationHandler.Visitor> visitors) {
+    public TransformationBuilder add(String tagName, List<UpdatingVisitor> visitors) {
         if (!tagToVisitors.containsKey(tagName)) {
-            tagToVisitors.put(tagName, new ArrayList<>(visitors));
+            put(tagName, visitors);
         } else {
             tagToVisitors.get(tagName).addAll(visitors);
         }
-        return null;
+        return this;
     }
 
-    public TransformationBuilder add(String tagName, TransformationHandler.Visitor visitors) {
+    public TransformationBuilder add(String tagName, UpdatingVisitor visitors) {
         if (!tagToVisitors.containsKey(tagName)) {
-            tagToVisitors.put(tagName, new ArrayList<>(List.of(visitors)));
+            put(tagName, visitors);
         } else {
             tagToVisitors.get(tagName).add(visitors);
         }
-        return null;
+        return this;
     }
 
     public TransformationHandler build(XMLStreamWriter writer) {

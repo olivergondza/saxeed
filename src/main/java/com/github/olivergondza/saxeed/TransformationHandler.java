@@ -1,18 +1,16 @@
 package com.github.olivergondza.saxeed;
 
+import com.github.olivergondza.saxeed.ex.FailedTransforming;
 import com.github.olivergondza.saxeed.ex.FailedWriting;
 import org.dom4j.Attribute;
-import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.dom4j.Node;
 import org.xml.sax.Attributes;
-import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -30,41 +28,13 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
      * List of visitors to perform operation for every tag.
      * New instances create for every file, so they can be stateful.
      */
-    private final Map<String, List<Visitor>> visitors;
-    private final Set<Visitor> uniqueVisitors;
-
-    public interface Visitor {
-
-        default void startElement(TagVisit tag) {}
-        default void body(TagVisit tag) {}
-        default void endElement(TagVisit tag) {}
-        default void endDocument() throws SAXException {}
-
-        default Element newElement(String name, Map<String, String> attrs) {
-            Element element = DocumentHelper.createElement(name);
-            for (Map.Entry<String, String> a : attrs.entrySet()) {
-                element.addAttribute(a.getKey(), a.getValue());
-            }
-            return element;
-        }
-
-        default Element newElement(String name, List<Element> children) {
-            Element element = DocumentHelper.createElement(name);
-            for (Element child : children) {
-                element.add(child);
-            }
-            return element;
-        }
-
-        default Element newElement(String name) {
-            return DocumentHelper.createElement(name);
-        }
-    }
+    private final Map<String, List<UpdatingVisitor>> visitors;
+    private final Set<UpdatingVisitor> uniqueVisitors;
 
     private final XMLStreamWriter writer;
-    private TagVisit currentTag;
+    private TagImpl currentTag;
 
-    public TransformationHandler(Map<String, List<Visitor>> visitors, XMLStreamWriter writer) {
+    public TransformationHandler(Map<String, List<UpdatingVisitor>> visitors, XMLStreamWriter writer) {
         this.visitors = visitors;
         this.writer = writer;
 
@@ -73,39 +43,35 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
                 .collect(Collectors.toSet());
     }
 
-    private TagVisit enterTag(String tagname, Attributes attributes) {
-        currentTag = new TagVisit(currentTag, tagname, attributes);
+    private TagImpl enterTag(String tagname, Attributes attributes) {
+        currentTag = new TagImpl(currentTag, tagname, attributes, false);
         return currentTag;
     }
 
     @Override
-    public void startElement(String uri, String localName, String tagname, Attributes attributes) throws SAXException {
-        TagVisit tag = enterTag(tagname, attributes);
+    public void startElement(String uri, String localName, String tagname, Attributes attributes) {
+        TagImpl tag = enterTag(tagname, attributes);
         _startElement(tag);
     }
 
-    private void _startElement(TagVisit tag) throws SAXException {
-        if (tag.isSkipped()) return;
+    private void _startElement(TagImpl tag) {
+        if (tag.isOmitted()) return;
 
-        List<Visitor> visitors = this.visitors.get(tag.getName());
+        List<UpdatingVisitor> visitors = this.visitors.get(tag.getName());
         if (visitors != null) {
-            for (Visitor v : visitors) {
-                v.startElement(tag);
+            for (UpdatingVisitor v : visitors) {
+                v.startTag( tag);
 
-                // TODO: fatal error and file deletion needs redesigning
-
-                if (tag.isSkipped()) return;
+                if (tag.isOmitted()) return;
             }
         }
 
-        Element sw = tag.getSurroundWith();
+        Element sw = tag.getWrapWith();
 
         if (sw != null) {
 
-            // The hierarchy of tag parents needs to be fixed as we have injected a new one
-            // between `currentTag` and `currentTag.parent`
-            tag.parent = new TagVisit(tag.parent, sw.getName(), getSaxAttributes(sw));
-            _startElement(tag.parent);
+            TagImpl wrapper = tag.wrapInto(sw.getName(), getSaxAttributes(sw));
+            _startElement(wrapper);
 
             if (!Objects.equals(sw.getTextTrim(), "")) {
                 throw new AssertionError("Writing text content not supported for added tags");
@@ -127,7 +93,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             writeTagsRecursively(tag.getTagsAdded());
             tag.getTagsAdded().clear();
         } catch (XMLStreamException e) {
-            throw new SAXException(ERROR_WRITING_TO_OUTPUT_FILE, e);
+            throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
         }
     }
 
@@ -136,12 +102,12 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
      *
      * This is implemented through call XUnitFixer's handler methods, so Fixup impls are aware of newly added tags.
      */
-    private void writeTagsRecursively(List<Element> tagsAdded) throws SAXException {
+    private void writeTagsRecursively(List<Element> tagsAdded) {
         if (tagsAdded.isEmpty()) return;
 
         for (Element element : tagsAdded) {
 
-            currentTag = new TagVisit(currentTag, element.getName(), getSaxAttributes(element), true);
+            currentTag = new TagImpl(currentTag, element.getName(), getSaxAttributes(element), true);
             _startElement(currentTag);
             if (!Objects.equals(element.getTextTrim(), "")) {
                 throw new AssertionError("Writing text content not supported for added tags");
@@ -166,19 +132,19 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     }
 
     @Override
-    public void endElement(String uri, String localName, String tagname) throws SAXException {
+    public void endElement(String uri, String localName, String tagname) {
         if (!Objects.equals(tagname, currentTag.getName())) {
             throw new AssertionError("Ending element " + tagname + " while inside " + currentTag.getName());
         }
 
-        TagVisit tag = currentTag;
-        currentTag = currentTag.parent;
+        TagImpl tag = currentTag;
+        currentTag = (TagImpl) currentTag.getParent();
 
-        if (!tag.isSkipped()) {
-            List<Visitor> visitors = this.visitors.get(tagname);
+        if (!tag.isOmitted()) {
+            List<UpdatingVisitor> visitors = this.visitors.get(tagname);
             if (visitors != null) {
-                for (Visitor v : visitors) {
-                    v.endElement(tag);
+                for (UpdatingVisitor v : visitors) {
+                    v.endTag(tag);
                 }
             }
 
@@ -188,42 +154,42 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             try {
                 writer.writeEndElement();
             } catch (XMLStreamException e) {
-                throw new SAXException(ERROR_WRITING_TO_OUTPUT_FILE, e);
+                throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
             }
         }
 
-        Element sw = tag.getSurroundWith();
+        Element sw = tag.getWrapWith();
         if (sw != null) {
             endElement(null, null, sw.getName());
         }
     }
 
     @Override
-    public void characters(char[] ch, int start, int length) throws SAXException {
-        TagVisit tag = currentTag;
+    public void characters(char[] ch, int start, int length) {
+        Tag tag = currentTag;
 
-        if (tag != null && !tag.isSkipped()) {
+        if (tag != null && !tag.isOmitted()) {
             try {
                 writer.writeCharacters(ch, start, length);
             } catch (XMLStreamException e) {
-                throw new SAXException(ERROR_WRITING_TO_OUTPUT_FILE, e);
+                throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
             }
         }
     }
 
     @Override
-    public void ignorableWhitespace(char[] ch, int start, int length) throws SAXException {
+    public void ignorableWhitespace(char[] ch, int start, int length) {
         try {
             writer.writeCharacters(ch, start, length);
         } catch (XMLStreamException e) {
-            throw new SAXException(ERROR_WRITING_TO_OUTPUT_FILE, e);
+            throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
         }
     }
 
     @Override
-    public void endDocument() throws SAXException {
+    public void endDocument() {
 
-        for (Visitor visitor: this.uniqueVisitors) {
+        for (UpdatingVisitor visitor: this.uniqueVisitors) {
             visitor.endDocument();
         }
 
@@ -239,7 +205,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
         }
     }
 
-    public static final class DeleteFileException extends SAXException {
+    public static final class DeleteFileException extends FailedTransforming {
         public DeleteFileException(String message) {
             super(message);
         }
