@@ -5,6 +5,7 @@ import com.github.olivergondza.saxeed.ex.FailedTransforming;
 import com.github.olivergondza.saxeed.ex.FailedWriting;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+import org.xml.sax.SAXParseException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.XMLConstants;
@@ -92,6 +93,12 @@ public class Saxeed {
             getSaxParser().parse(input, handler);
         } catch (IOException ex) {
             throw new FailedWriting("Failed reading input file", ex);
+        } catch (SAXParseException ex) {
+            // Provide more descriptive error message for parsing errors
+            String msg = ex.getMessage().replace("[.]$", "");
+            throw new FailedReading(String.format(
+                    "Failed parsing input file: %s at [%d:%d]", msg, ex.getLineNumber(), ex.getColumnNumber()
+            ), ex);
         } catch (SAXException ex) {
             throw new FailedTransforming("Failed processing input file", ex);
         }
