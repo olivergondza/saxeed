@@ -1,6 +1,8 @@
 package com.github.olivergondza.saxeed;
 
 import com.github.olivergondza.saxeed.ex.FailedTransforming;
+import org.dom4j.DocumentHelper;
+import org.dom4j.Element;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,10 +16,9 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import static com.github.olivergondza.saxeed.UpdatingVisitor.newElement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class SaxeedTest {
+class SaxeedTest {
 
     private Path tempDir;
 
@@ -109,13 +110,13 @@ public class SaxeedTest {
     @Test
     void skip() {
         assertEquals("", transform(
-                "<root></root>",
+                "<root>skip</root>",
                 Tag.Start::skip,
                 "root"
         ));
 
-        assertEquals("<a></a>", transform(
-                "<a><skip><child/><another></another></skip></a>",
+        assertEquals("<a>keepkeep</a>", transform(
+                "<a>keep<skip>skip<child/>skip<another>skip</another>skip</skip>keep</a>",
                 Tag.Start::skip,
                 "skip"
         ));
@@ -130,23 +131,23 @@ public class SaxeedTest {
     @Test
     void empty() {
         String actual = transform(
-                "<a><empty><child/><another></another></empty><s></s></a>",
+                "<a>keep1<empty><child/>skip<another>skip</another></empty>keep<s>keep</s></a>",
                 Tag.Start::empty,
                 "empty"
         );
 
-        assertEquals("<a><empty></empty><s></s></a>", actual);
+        assertEquals("<a>keep1<empty></empty>keep<s>keep</s></a>", actual);
     }
 
     @Test
     void unwrap() {
         String actual = transform(
-                "<a><unwrap><child/><another><unwrap><foo/></unwrap></another></unwrap></a>",
+                "<a>keep<unwrap>keep<child/><another><unwrap><foo/>keep</unwrap></another></unwrap>keep</a>",
                 Tag.Start::unwrap,
                 "unwrap"
         );
 
-        assertEquals("<a><child></child><another><foo></foo></another></a>", actual);
+        assertEquals("<a>keepkeep<child></child><another><foo></foo>keep</another>keep</a>", actual);
     }
 
     @Test
@@ -156,30 +157,38 @@ public class SaxeedTest {
                 ts -> {
                     ts.removeAttribute("no_such_attr");
                     ts.removeAttributes(List.of("a", "nope"));
+                    ts.getAttributes().put("n", "New!");
+
                 },
                 "root"
         );
 
-        assertEquals("<root><child a=\"v\"></child></root>", actual);
+        assertEquals("<root n=\"New!\"><child a=\"v\"></child></root>", actual);
     }
 
     @Test
     void wrap() {
         Consumer<Tag.Start> wrap = ts -> {
-            ts.wrapWith(newElement(
-                    "wrapper", Map.of("a1", "v1", "a2", "v2")
-            ));
+            Element element = DocumentHelper.createElement("wrapper");
+            element.addAttribute("a1", "v1");
+            element.addAttribute("a2", "v2");
+            ts.wrapWith(element);
         };
         assertEquals(
                 "<wrapper a1=\"v1\" a2=\"v2\"><a></a></wrapper>",
                 transform("<a></a>", wrap, "a")
         );
 
-        // TODO
-//        assertEquals(
-//                "<wrapper a1=\"v1\" a2=\"v2\"><a><wrapper a1=\"v1\" a2=\"v2\"><a></a></wrapper></a></wrapper>",
-//                transform("<a><i><a/></i></a>", wrap, "a")
-//        );
+        assertEquals(
+                "<r><wrapper a1=\"v1\" a2=\"v2\"><a></a></wrapper></r>",
+                transform("<r><a></a></r>", wrap, "a")
+        );
+
+
+        assertEquals(
+                "<wrapper a1=\"v1\" a2=\"v2\"><a><i><wrapper a1=\"v1\" a2=\"v2\"><a></a></wrapper></i></a></wrapper>",
+                transform("<a><i><a/></i></a>", wrap, "a")
+        );
     }
 
     @Test

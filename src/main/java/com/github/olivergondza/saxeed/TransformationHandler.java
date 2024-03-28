@@ -180,9 +180,9 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
 
     @Override
     public void characters(char[] ch, int start, int length) {
-        Tag tag = currentTag;
+        TagImpl tag = currentTag;
 
-        if (tag != null && !tag.isOmitted()) {
+        if (tag != null && !tag.isCharactersOmitted()) {
             try {
                 writer.writeCharacters(ch, start, length);
             } catch (XMLStreamException e) {
@@ -208,8 +208,6 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
         }
     }
-
-
 
     @Override
     public void endDocument() {

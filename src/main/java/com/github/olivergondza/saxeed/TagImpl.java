@@ -3,13 +3,9 @@ package com.github.olivergondza.saxeed;
 import org.dom4j.Element;
 import org.xml.sax.Attributes;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * The Element representation for the purposes of visiting.
@@ -65,6 +61,9 @@ import java.util.Objects;
         if (parent != null) {
             writeMode = parent.writeMode.children;
         }
+
+        // Verify invariant
+        traverseParentChain(null);
     }
 
     @Override
@@ -131,6 +130,10 @@ import java.util.Objects;
         return !writeMode.writeMe;
     }
 
+    /*package*/ boolean isCharactersOmitted() {
+        return !writeMode.writeText;
+    }
+
     @Override
     public void wrapWith(Element wrapWith) {
         if (this.wrapWith != null) throw new AssertionError(
@@ -176,48 +179,78 @@ import java.util.Objects;
     // The hierarchy of tag parents needs to be fixed as we have injected a new one
     // between `this` and `this.parent`
     /*package*/ TagImpl wrapInto(String name, Attributes attrs) {
-        setParent(new TagImpl(this.parent, name, attrs, false));
+        insertParent(new TagImpl(this.parent, name, attrs, false));
         return this.parent;
     }
 
-    private void setParent(TagImpl parent) {
+    private void insertParent(TagImpl candidate) {
         if (this.parent != null) {
 
-            if (parent.parent != this.parent.parent) throw new AssertionError(
-                    "Unable to set parent, invalid grandparent"
+            if (candidate.parent != this.parent) throw new AssertionError(
+                    "Unable to set parent, invalid grandparent:" +
+                            "\n  this:        " + this.getName() +
+                            "\n  this.parent: " + (this.parent == null ? null : this.parent.name) +
+                            "\n  new:         " + candidate.getName() +
+                            "\n  new.parent:  " + (candidate.parent == null ? null : candidate.parent.name)
             );
 
-            ArrayList<TagImpl> parents = new ArrayList<>();
-            for (TagImpl tag = this; tag != null; tag = tag.parent) {
-                parents.add(tag);
-                if (tag == parent) throw new AssertionError(
-                        String.format("Illegal parent insert of %s into %s", parent.getName(), this)
+            traverseParentChain(tag -> {
+                if (tag == candidate) throw new AssertionError(
+                        String.format("Cannot insert parent %s. Already in %s", candidate.getName(), this)
                 );
-            }
-
-            if (parents.size() != new HashSet<>(parents).size()) {
-                throw new AssertionError("Duplicates detected in parent chain");
-            }
+            });
         }
 
-        this.parent = parent;
+        this.parent = candidate;
     }
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        int limit = 100;
-        for (Tag tag = this; tag != null; tag = getParent()) {
-            if (--limit < 0) {
-                throw new AssertionError("Too deap of a parent loop: " + sb);
+        traverseParentChain(t -> {
+            // the hierarchy is iterated backwards. To produce hierarchy from root, it is prepending to the beginning of the builder.
+            sb.insert(0, ">");
+            if (t.isOmitted()) {
+                sb.insert(0, "(omitted)");
             }
-            sb.append("/").append(tag.getName());
-            if (isOmitted()) {
-                sb.append(";omitted");
+            if (t.isGenerated()) {
+                sb.insert(0, "(generated)");
             }
-            if (isGenerated()) {
-                sb.append(";generated");
-            }
-        }
+            sb.insert(0, t.getName());
+        });
         return sb.toString();
+    }
+
+    /**
+     * Traverse parent hierarchy from current to root, reporting problems.
+     *
+     * @param consumer Optional operation to apply to each.
+     */
+    private void traverseParentChain(Consumer<TagImpl> consumer) {
+        LinkedHashSet<TagImpl> chain = new LinkedHashSet<>();
+        TagImpl tag = this;
+        for (int depth = 0; depth < 100; depth++) {
+            boolean found = !chain.add(tag);
+            if (found) throw new AssertionError(
+                    "Duplicate parent found " + tag.getName() + " in " + printChain(chain)
+            );
+
+            if (consumer != null) {
+                consumer.accept(tag);
+            }
+
+            tag = tag.parent;
+            if (tag == null) return;
+        }
+
+        throw new AssertionError("Too deap of a parent loop: " + printChain(chain));
+    }
+
+    private String printChain(LinkedHashSet<TagImpl> chain) {
+        List<String> names = chain.stream()
+                .map(TagImpl::getName)
+                .collect(Collectors.toList())
+        ;
+        Collections.reverse(names);
+        return String.join(">", names);
     }
 }
