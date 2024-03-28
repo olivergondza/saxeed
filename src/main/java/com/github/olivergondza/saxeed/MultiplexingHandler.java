@@ -6,7 +6,6 @@ import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
-import java.io.IOException;
 import java.util.List;
 
 public class MultiplexingHandler extends DefaultHandler implements AutoCloseable {
