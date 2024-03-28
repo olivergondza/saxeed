@@ -6,6 +6,7 @@ import org.xml.sax.Attributes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -141,17 +142,17 @@ import java.util.Objects;
 
     @Override
     public void skip() {
-        parent.writeMode = TagWriteMode.SKIP;
+        writeMode = TagWriteMode.SKIP;
     }
 
     @Override
     public void unwrap() {
-        parent.writeMode = TagWriteMode.UNWRAP;
+        writeMode = TagWriteMode.UNWRAP;
     }
 
     @Override
     public void empty() {
-        parent.writeMode = TagWriteMode.EMPTY;
+        writeMode = TagWriteMode.EMPTY;
     }
 
     @Override
@@ -162,14 +163,6 @@ import java.util.Objects;
     @Override
     public String removeAttribute(String attr) {
         return getAttributes().remove(attr);
-    }
-
-    private void setWrapWith(Element wrapWith) {
-        if (this.wrapWith != null) throw new AssertionError(
-                "Unable to wrap with multiple elements. Existing " + wrapWith
-        );
-
-        this.wrapWith = wrapWith;
     }
 
     /*package*/ List<Element> getTagsAdded() {
@@ -183,7 +176,48 @@ import java.util.Objects;
     // The hierarchy of tag parents needs to be fixed as we have injected a new one
     // between `this` and `this.parent`
     /*package*/ TagImpl wrapInto(String name, Attributes attrs) {
-        this.parent = new TagImpl(this, name, attrs, false);
+        setParent(new TagImpl(this.parent, name, attrs, false));
         return this.parent;
+    }
+
+    private void setParent(TagImpl parent) {
+        if (this.parent != null) {
+
+            if (parent.parent != this.parent.parent) throw new AssertionError(
+                    "Unable to set parent, invalid grandparent"
+            );
+
+            ArrayList<TagImpl> parents = new ArrayList<>();
+            for (TagImpl tag = this; tag != null; tag = tag.parent) {
+                parents.add(tag);
+                if (tag == parent) throw new AssertionError(
+                        String.format("Illegal parent insert of %s into %s", parent.getName(), this)
+                );
+            }
+
+            if (parents.size() != new HashSet<>(parents).size()) {
+                throw new AssertionError("Duplicates detected in parent chain");
+            }
+        }
+
+        this.parent = parent;
+    }
+
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        int limit = 100;
+        for (Tag tag = this; tag != null; tag = getParent()) {
+            if (--limit < 0) {
+                throw new AssertionError("Too deap of a parent loop: " + sb);
+            }
+            sb.append("/").append(tag.getName());
+            if (isOmitted()) {
+                sb.append(";omitted");
+            }
+            if (isGenerated()) {
+                sb.append(";generated");
+            }
+        }
+        return sb.toString();
     }
 }

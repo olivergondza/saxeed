@@ -27,7 +27,7 @@ public interface Tag {
 
     boolean isOmitted();
 
-    interface Start {
+    interface Start extends Tag {
         void wrapWith(Element wrapWith);
 
         void skip();
@@ -45,7 +45,7 @@ public interface Tag {
         void addChild(Element child);
     }
 
-    interface End {
+    interface End extends Tag {
         void addChildren(List<Element> children);
 
         void addChild(Element child);

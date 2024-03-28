@@ -6,6 +6,7 @@ import org.dom4j.Attribute;
 import org.dom4j.Element;
 import org.dom4j.Node;
 import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.helpers.DefaultHandler;
 
@@ -15,12 +16,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
  * SAX Handler to apply visitors to elements and generate resulting document.
  */
 public class TransformationHandler extends DefaultHandler implements AutoCloseable {
+
+    private static final Logger LOGGER = Logger.getLogger(TransformationHandler.class.getName());
 
     public static final String ERROR_WRITING_TO_OUTPUT_FILE = "Error writing to output file";
 
@@ -60,7 +64,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
         List<UpdatingVisitor> visitors = this.visitors.get(tag.getName());
         if (visitors != null) {
             for (UpdatingVisitor v : visitors) {
-                v.startTag( tag);
+                v.startTag(tag);
 
                 if (tag.isOmitted()) return;
             }
@@ -85,10 +89,13 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
         }
 
         try {
+            LOGGER.fine("<" + tag.getName());
             writer.writeStartElement(tag.getName());
             for (Map.Entry<String, String> e : tag.getAttributes().entrySet()) {
+                LOGGER.fine(String.format("%s='%s'", e.getKey(), e.getValue()));
                 writer.writeAttribute(e.getKey(), e.getValue());
             }
+            LOGGER.fine(">");
 
             writeTagsRecursively(tag.getTagsAdded());
             tag.getTagsAdded().clear();
@@ -105,9 +112,10 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     private void writeTagsRecursively(List<Element> tagsAdded) {
         if (tagsAdded.isEmpty()) return;
 
+        TagImpl oldCurrentTag = currentTag;
         for (Element element : tagsAdded) {
 
-            currentTag = new TagImpl(currentTag, element.getName(), getSaxAttributes(element), true);
+            currentTag = new TagImpl(oldCurrentTag, element.getName(), getSaxAttributes(element), true);
             _startElement(currentTag);
             if (!Objects.equals(element.getTextTrim(), "")) {
                 throw new AssertionError("Writing text content not supported for added tags");
@@ -121,6 +129,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             }
             endElement(null, null, element.getName());
         }
+        currentTag = oldCurrentTag;
     }
 
     private static AttributesImpl getSaxAttributes(Element element) {
@@ -133,12 +142,14 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
 
     @Override
     public void endElement(String uri, String localName, String tagname) {
+        if (currentTag == null) throw new AssertionError("Closing tag without currentTag se");
+
         if (!Objects.equals(tagname, currentTag.getName())) {
             throw new AssertionError("Ending element " + tagname + " while inside " + currentTag.getName());
         }
 
         TagImpl tag = currentTag;
-        currentTag = (TagImpl) currentTag.getParent();
+
 
         if (!tag.isOmitted()) {
             List<UpdatingVisitor> visitors = this.visitors.get(tagname);
@@ -152,11 +163,14 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             tag.getTagsAdded().clear();
 
             try {
+                LOGGER.fine("</" + tagname + "> (saxeed: " + currentTag.getName() + ")");
                 writer.writeEndElement();
             } catch (XMLStreamException e) {
                 throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
             }
         }
+
+        currentTag = (TagImpl) currentTag.getParent();
 
         Element sw = tag.getWrapWith();
         if (sw != null) {
@@ -182,9 +196,20 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
         try {
             writer.writeCharacters(ch, start, length);
         } catch (XMLStreamException e) {
+
+        }
+    }
+
+    @Override
+    public void processingInstruction(String target, String data) {
+        try {
+            writer.writeProcessingInstruction(target, data);
+        } catch (XMLStreamException e) {
             throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
         }
     }
+
+
 
     @Override
     public void endDocument() {

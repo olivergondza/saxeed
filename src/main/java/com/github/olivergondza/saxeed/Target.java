@@ -38,4 +38,22 @@ public interface Target {
             return file.getAbsolutePath();
         }
     }
+
+    class OutputStreamTarget implements Target {
+        private final OutputStream os;
+
+        public OutputStreamTarget(OutputStream os) {
+            this.os = os;
+        }
+
+        @Override
+        public OutputStream getOutputStream() {
+            return os;
+        }
+
+        @Override
+        public String getName() {
+            return os.getClass().getName();
+        }
+    }
 }

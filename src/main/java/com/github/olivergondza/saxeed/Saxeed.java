@@ -19,6 +19,8 @@ import javax.xml.transform.Result;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.StringReader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -65,6 +67,12 @@ public class Saxeed {
         return this;
     }
 
+    public Saxeed setInputString(String xml) {
+        input = new InputSource(new StringReader(xml));
+        input.setSystemId("In-memory string");
+        return this;
+    }
+
     private Saxeed addTransformation(TransformationBuilder transformation, Target target) {
         transformations.put(transformation, target);
         return this;
@@ -76,6 +84,10 @@ public class Saxeed {
 
     public Saxeed addTransformation(TransformationBuilder transformation, File file) {
         return addTransformation(transformation, new Target.FileTarget(file));
+    }
+
+    public Saxeed addTransformation(TransformationBuilder transformation, OutputStream os) {
+        return addTransformation(transformation, new Target.OutputStreamTarget(os));
     }
 
     /**
