@@ -6,9 +6,17 @@
     <groupId>com.github.olivergondza</groupId>
     <artifactId>saxeed</artifactId>
     <version>1.0</version>
+    <description>Sufficiently Advanced XML Eventing Editor</description>
 
     <name>saxeed</name>
     <url>https://github.com/olivergondza/saxeed</url>
+
+    <developers>
+        <developer>
+            <name>Oliver Gondža</name>
+            <email>ogondza@gmail.com</email>
+        </developer>
+    </developers>
 
     <scm>
         <url>https://github.com/olivergondza/saxeed</url>
