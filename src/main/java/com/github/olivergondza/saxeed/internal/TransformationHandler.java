@@ -1,5 +1,6 @@
-package com.github.olivergondza.saxeed;
+package com.github.olivergondza.saxeed.internal;
 
+import com.github.olivergondza.saxeed.UpdatingVisitor;
 import com.github.olivergondza.saxeed.ex.FailedTransforming;
 import com.github.olivergondza.saxeed.ex.FailedWriting;
 import org.dom4j.Attribute;

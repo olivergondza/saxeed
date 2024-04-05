@@ -1,5 +1,7 @@
 package com.github.olivergondza.saxeed;
 
+import com.github.olivergondza.saxeed.internal.TransformationHandler;
+
 import javax.xml.stream.XMLStreamWriter;
 import java.util.ArrayList;
 import java.util.HashMap;

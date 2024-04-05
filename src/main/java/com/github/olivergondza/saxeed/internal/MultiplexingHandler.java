@@ -1,4 +1,4 @@
-package com.github.olivergondza.saxeed;
+package com.github.olivergondza.saxeed.internal;
 
 import com.github.olivergondza.saxeed.ex.FailedWriting;
 import org.xml.sax.Attributes;

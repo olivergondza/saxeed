@@ -3,6 +3,8 @@ package com.github.olivergondza.saxeed;
 import com.github.olivergondza.saxeed.ex.FailedReading;
 import com.github.olivergondza.saxeed.ex.FailedTransforming;
 import com.github.olivergondza.saxeed.ex.FailedWriting;
+import com.github.olivergondza.saxeed.internal.MultiplexingHandler;
+import com.github.olivergondza.saxeed.internal.TransformationHandler;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;

@@ -1,4 +1,4 @@
-package com.github.olivergondza.saxeed;
+package com.github.olivergondza.saxeed.internal;
 
 /*package*/ enum TagWriteMode {
     /**

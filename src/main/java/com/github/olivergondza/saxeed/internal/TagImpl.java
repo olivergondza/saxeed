@@ -1,5 +1,6 @@
-package com.github.olivergondza.saxeed;
+package com.github.olivergondza.saxeed.internal;
 
+import com.github.olivergondza.saxeed.Tag;
 import org.dom4j.Element;
 import org.xml.sax.Attributes;
 
