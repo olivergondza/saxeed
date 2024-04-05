@@ -1,5 +1,6 @@
 package com.github.olivergondza.saxeed.internal;
 
+import com.github.olivergondza.saxeed.Subscribed;
 import com.github.olivergondza.saxeed.UpdatingVisitor;
 import com.github.olivergondza.saxeed.ex.FailedTransforming;
 import com.github.olivergondza.saxeed.ex.FailedWriting;
@@ -12,6 +13,10 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,19 +37,15 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
      * List of visitors to perform operation for every tag.
      * New instances create for every file, so they can be stateful.
      */
-    private final Map<String, List<UpdatingVisitor>> visitors;
-    private final Set<UpdatingVisitor> uniqueVisitors;
+    private final LinkedHashMap<UpdatingVisitor, Subscribed> visitors;
+    private final Map<String, List<UpdatingVisitor>> visitorCache = new HashMap<>();
 
     private final XMLStreamWriter writer;
     private TagImpl currentTag;
 
-    public TransformationHandler(Map<String, List<UpdatingVisitor>> visitors, XMLStreamWriter writer) {
+    public TransformationHandler(LinkedHashMap<UpdatingVisitor, Subscribed> visitors, XMLStreamWriter writer) {
         this.visitors = visitors;
         this.writer = writer;
-
-        uniqueVisitors = this.visitors.values().stream()
-                .flatMap(List::stream)
-                .collect(Collectors.toSet());
     }
 
     private TagImpl enterTag(String tagname, Attributes attributes) {
@@ -61,13 +62,10 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     private void _startElement(TagImpl tag) {
         if (tag.isOmitted()) return;
 
-        List<UpdatingVisitor> visitors = this.visitors.get(tag.getName());
-        if (visitors != null) {
-            for (UpdatingVisitor v : visitors) {
-                v.startTag(tag);
+        for (UpdatingVisitor v : getVisitors(tag.getName())) {
+            v.startTag(tag);
 
-                if (tag.isOmitted()) return;
-            }
+            if (tag.isOmitted()) return;
         }
 
         Element sw = tag.getWrapWith();
@@ -102,6 +100,26 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
         } catch (XMLStreamException e) {
             throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
         }
+    }
+
+    /**
+     * Get visitors subscribed to given tag name.
+     *
+     * The result is cached.
+     */
+    private List<UpdatingVisitor> getVisitors(String tagName) {
+        List<UpdatingVisitor> visitors = visitorCache.get(tagName);
+        if (visitors != null) return visitors;
+
+        visitors = this.visitors.entrySet().stream()
+                .filter(e -> e.getValue().isSubscribed(tagName))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList())
+        ;
+
+        visitorCache.put(tagName, visitors);
+
+        return visitors;
     }
 
     /**
@@ -150,13 +168,12 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
 
         TagImpl tag = currentTag;
 
-
         if (!tag.isOmitted()) {
-            List<UpdatingVisitor> visitors = this.visitors.get(tagname);
-            if (visitors != null) {
-                for (UpdatingVisitor v : visitors) {
-                    v.endTag(tag);
-                }
+
+            List<UpdatingVisitor> visitors = getVisitors(tagname);
+            // Iterate reversed for closing tag
+            for (int i = visitors.size() - 1; i >= 0; i--) {
+                visitors.get(i).endTag(tag);
             }
 
             writeTagsRecursively(tag.getTagsAdded());
@@ -196,7 +213,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
         try {
             writer.writeCharacters(ch, start, length);
         } catch (XMLStreamException e) {
-
+            throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
         }
     }
 
@@ -212,7 +229,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     @Override
     public void endDocument() {
 
-        for (UpdatingVisitor visitor: this.uniqueVisitors) {
+        for (UpdatingVisitor visitor: this.visitors.keySet()) {
             visitor.endDocument();
         }
 

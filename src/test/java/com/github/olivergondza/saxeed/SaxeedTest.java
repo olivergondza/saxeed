@@ -1,12 +1,15 @@
 package com.github.olivergondza.saxeed;
 
+import com.github.olivergondza.saxeed.ex.FailedReading;
 import com.github.olivergondza.saxeed.ex.FailedTransforming;
+import com.github.olivergondza.saxeed.ex.FailedWriting;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.xml.stream.XMLOutputFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,6 +20,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class SaxeedTest {
 
@@ -55,7 +59,7 @@ class SaxeedTest {
         Path output = tempDir.resolve(input.getFileName());
 
         TransformationBuilder transformation = new TransformationBuilder()
-                .put("nosuchtagused", new DeleteAll())
+                .add("nosuchtagused", new DeleteAll())
         ;
 
         Saxeed saxeed = new Saxeed()
@@ -213,6 +217,45 @@ class SaxeedTest {
                 "<r><head></head><neck a=\"\"></neck><existing></existing><tail><tail></tail></tail></r>",
                 transform("<r><existing/></r>", addch, "r")
         );
+    }
+
+    @Test
+    void illegalUse() {
+
+        try {
+            new Saxeed().transform();
+            fail();
+        } catch (IllegalStateException e) {
+            assertEquals("No input data configured", e.getMessage());
+        }
+
+        try {
+            new Saxeed().setInputString("<a/>").transform();
+            fail();
+        } catch (IllegalStateException e) {
+            assertEquals("No transformations configured", e.getMessage());
+        }
+    }
+
+    @Test
+    void recursiveGeneration() {
+        // Generate tags with name the visitor is subscribed to leading to infinite recursion
+        UpdatingVisitor uv = new UpdatingVisitor() {
+            @Override
+            public void startTag(Tag.Start tag) throws FailedTransforming {
+                tag.addChild(newElement("r"));
+            }
+        };
+
+        try {
+            transform("<r/>", uv, "r");
+            fail();
+        } catch (AssertionError ex) {
+            assertEquals(
+                    "Too deap of a parent loop: r>r>r>r>",
+                    ex.getMessage().substring(0, 35)
+            );
+        }
     }
 
     String transform(String input, Consumer<Tag.Start> lambda, String... on) {
