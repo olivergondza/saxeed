@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class Saxeed {
 
@@ -72,7 +73,7 @@ public class Saxeed {
         return this;
     }
 
-    private Saxeed addTransformation(TransformationBuilder transformation, Target target) {
+    Saxeed addTransformation(TransformationBuilder transformation, Target target) {
         transformations.put(transformation, target);
         return this;
     }
@@ -85,16 +86,39 @@ public class Saxeed {
         return addTransformation(transformation, new Target.FileTarget(file));
     }
 
+    /**
+     * Transform to OutputStream.
+     *
+     * The stream is NOT closed.
+     */
     public Saxeed addTransformation(TransformationBuilder transformation, OutputStream os) {
         return addTransformation(transformation, new Target.OutputStreamTarget(os));
     }
 
     /**
+     * Transform to XMLStreamWriter.
+     *
+     * The stream is NOT closed.
+     */
+    public Saxeed addTransformation(TransformationBuilder transformation, XMLStreamWriter writer) {
+        return addTransformation(transformation, new Target.XmlStreamWriterTarget(writer));
+    }
+
+    /**
+     * Transform discording all output.
+     *
+     * This is to visit and collect data from the stream, not to perform any meaningful transformation.
+     */
+    public Saxeed addTransformation(TransformationBuilder transformation) {
+        return addTransformation(transformation, new Target.DevNullTarget());
+    }
+
+    /**
      * Perform the configured transformation.
      *
-     * @throws FailedReading When problem reading the supplied input.
-     * @throws FailedTransforming When some of the visitors fails.
-     * @throws FailedWriting When some of the targets failed writing.
+     * @throws FailedReading When reading the supplied input fails.
+     * @throws FailedTransforming When some of the visitors throws.
+     * @throws FailedWriting When some of the targets fail writing.
      */
     public void transform() throws FailedReading, FailedTransforming, FailedWriting {
         validateConfig();
@@ -138,16 +162,12 @@ public class Saxeed {
     }
 
     private MultiplexingHandler getSaxHandler() {
-        List<TransformationHandler> handlers = new ArrayList<>(transformations.size());
-        for (Map.Entry<TransformationBuilder, Target> trans : transformations.entrySet()) {
+        List<TransformationHandler> handlers = transformations.entrySet().stream().map(trans -> {
             Target target = trans.getValue();
-            try {
-                XMLStreamWriter writer = xmlOutputFactory.createXMLStreamWriter(target.getOutputStream());
-                handlers.add(trans.getKey().build(writer));
-            } catch (XMLStreamException e) {
-                throw new FailedWriting("Unable to create XML Stream Writer for: " + target.getName(), e);
-            }
-        }
+            TransformationBuilder builder = trans.getKey();
+
+            return target.getHandler(builder, xmlOutputFactory);
+        }).collect(Collectors.toList());
         return new MultiplexingHandler(handlers);
     }
 }

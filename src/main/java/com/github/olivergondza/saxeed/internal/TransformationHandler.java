@@ -13,6 +13,7 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -41,11 +42,18 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     private final Map<String, List<UpdatingVisitor>> visitorCache = new HashMap<>();
 
     private final XMLStreamWriter writer;
+    // A resource to close once done. Can be null
+    private final AutoCloseable closeAction;
     private TagImpl currentTag;
 
-    public TransformationHandler(LinkedHashMap<UpdatingVisitor, Subscribed> visitors, XMLStreamWriter writer) {
+    public TransformationHandler(
+            LinkedHashMap<UpdatingVisitor, Subscribed> visitors,
+            XMLStreamWriter writer,
+            AutoCloseable closeAction
+    ) {
         this.visitors = visitors;
         this.writer = writer;
+        this.closeAction = closeAction;
     }
 
     private TagImpl enterTag(String tagname, Attributes attributes) {
@@ -232,16 +240,26 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
         for (UpdatingVisitor visitor: this.visitors.keySet()) {
             visitor.endDocument();
         }
-
-        close();
     }
 
     @Override
     public void close() throws FailedWriting {
         try {
-            writer.close();
-        } catch (XMLStreamException e) {
-            throw new FailedWriting("Failed closing writer stream", e);
+            // Make sure the content is written to XMLStreamWriter, no matter if closing the target or not
+            writer.flush();
+
+            // Closing XMLStreamWriter never close the target, but it will be un-writable afterward.
+            // So closing writer iff the target should be closed.
+            if (closeAction != null) {
+                // Hackish: Need to close 2 resources, and need to preserve both the eventual exceptions from close() - exactly what
+                // an empty try-with-resources would do. But, the XMLStreamWriter does not implement AutoClosable, so a compromise
+                // approach is needed.
+                try (closeAction) {
+                    writer.close();
+                }
+            }
+        } catch (Exception e) {
+            throw new FailedWriting("Failed closing stream", e);
         }
     }
 

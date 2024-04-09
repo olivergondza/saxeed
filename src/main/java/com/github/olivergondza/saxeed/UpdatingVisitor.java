@@ -7,7 +7,13 @@ import org.dom4j.Element;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Visitor listening and modifying resulting stream.
+ */
 public interface UpdatingVisitor {
+
+    default void startDocument() throws FailedTransforming {
+    }
 
     default void startTag(Tag.Start tag) throws FailedTransforming {
     }

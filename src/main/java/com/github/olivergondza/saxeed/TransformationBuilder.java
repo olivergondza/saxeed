@@ -37,7 +37,7 @@ public class TransformationBuilder {
         return this;
     }
 
-    public TransformationHandler build(XMLStreamWriter writer) {
-        return new TransformationHandler(visitors, writer);
+    public TransformationHandler build(XMLStreamWriter writer, AutoCloseable closeAction) {
+        return new TransformationHandler(visitors, writer, closeAction);
     }
 }
