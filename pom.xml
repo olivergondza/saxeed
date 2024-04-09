@@ -197,7 +197,8 @@
                 <executions>
                     <execution>
                         <id>sign-artifacts</id>
-                        <phase>deploy</phase>
+                        <!-- Needs to be signed before deploy, but cumbersome if signing is required for verify -->
+                        <phase>install</phase>
                         <goals>
                             <goal>sign</goal>
                         </goals>
