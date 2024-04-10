@@ -6,10 +6,36 @@ Your user-friendly SAX wrapper to transform XML files easily, with memory consum
 
 Saxeed, a SAX wrapper, stream process XML input performing modifications to its outputs based on predefined transformation(s).
 
-It accepts the constraints of "streaming" (or "eventing") approach — elements are visited one-by-one with no option to look ahead in the stream.
-This is a tradeoff we accept in return for predictable memory footprint. 
+It accepts the constraints of "streaming" (or "eventing") approach — elements are visited one-by-one with no option to move around the stream.
+This is a tradeoff we accept in return for predictable memory footprint.
+
+The very nature of stream-based processing restricts the data that are available in every moment, and modifications that are permitted.
+To accommodate that, developer needs to accept a paradigm shift compared to, say, dom4j.
+
+Saxeed strives to add as much convenience on top of plain old SAX, while adding as little of an overhead.
+
+### Capabilities
+
+Each tag visitor have access to / can modify the following: 
+
+|                                    | Tag Start              | Tag End                |
+|------------------------------------|------------------------|------------------------|
+| Access Tag attributes              | ☑                      | ☑                      |
+| Access Parent(s) Tag attributes    | ☑                      | ☑                      |
+| Add Child Tags                     | ☑                      | ☑ (before closing tag) |
+| Add Sibling Tags (NOT IMPLEMENTED) | ☑ (before and after)   | ☑ (only after)         |
+| Add Parent Tag (`wrapWith()`)      | ☑                      | ☐                      |
+| Change Attributes                  | ☑                      | ☐                      |
+| Delete Tag (`unwrap()`)            | ☑                      | ☐                      |
+| Delete Tag Recursively (`skip()`)  | ☑                      | ☐                      |
+| Delete Child Tags (`empty()`)           | ☑                      | ☐                      |
+
+More complex changes can be implemented by subscribing visitors to multiple tags, and retaining information between their visits.  
 
 ## Usage
+
+[Basic Concepts](./docs/BASICS.md)
+[Implementing Visitors](./docs/VISITORS.md)
 
 ### Dependency
 

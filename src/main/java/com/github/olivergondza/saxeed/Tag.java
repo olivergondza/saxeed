@@ -13,8 +13,6 @@ public interface Tag {
 
     boolean isNamed(String name);
 
-    boolean isGenerated();
-
     Tag getParent();
 
     String getName();
@@ -24,6 +22,8 @@ public interface Tag {
     Tag getAncestor(String name);
 
     Map<String, String> getAttributes();
+
+    boolean isGenerated();
 
     boolean isOmitted();
 
