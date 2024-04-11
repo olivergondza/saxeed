@@ -121,17 +121,16 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
      *
      * This is implemented through call XUnitFixer's handler methods, so Fixup impls are aware of newly added tags.
      */
-    private void writeTagsRecursively(List<Tag> tagsAdded) {
+    private void writeTagsRecursively(List<TagImpl> tagsAdded) {
         if (tagsAdded.isEmpty()) return;
 
         TagImpl oldCurrentTag = currentTag;
-        for (Tag tag: tagsAdded) {
+        for (TagImpl tag: tagsAdded) {
 
-            currentTag = (TagImpl) tag;
+            currentTag = tag;
             _startElement(currentTag);
 
-
-            for (Tag child: currentTag.getTagsAdded()) {
+            for (TagImpl child: currentTag.getTagsAdded()) {
                 writeTagsRecursively(List.of(child));
             }
             endElement(null, null, currentTag.getName());
@@ -161,7 +160,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             tag.getTagsAdded().clear();
 
             try {
-                LOGGER.fine("</" + tagname + "> (saxeed: " + currentTag.getName() + ")");
+                LOGGER.fine("</" + tagname + ">");
                 writer.writeEndElement();
             } catch (XMLStreamException e) {
                 throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);

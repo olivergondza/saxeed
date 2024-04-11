@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
     /**
      * List of children to be added.
      */
-    private final List<Tag> childrenToAdd = new ArrayList<>();
+    private final List<TagImpl> childrenToAdd = new ArrayList<>();
 
     /**
      *  Element that current element should be surrounded with.
@@ -182,12 +182,8 @@ import java.util.stream.Collectors;
         return getAttributes().remove(attr);
     }
 
-    /*package*/ List<Tag> getTagsAdded() {
+    /*package*/ List<TagImpl> getTagsAdded() {
         return childrenToAdd;
-    }
-
-    /*package*/ Tag getWrapWith() {
-        return wrapWith;
     }
 
     // The hierarchy of tag parents needs to be fixed as we have injected a new one
