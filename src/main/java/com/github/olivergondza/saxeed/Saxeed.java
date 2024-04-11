@@ -107,7 +107,7 @@ public class Saxeed {
     /**
      * Transform discording all output.
      *
-     * This is to visit and collect data from the stream, not to perform any meaningful transformation.
+     * This is to visit and collect data from the stream, but not to perform any meaningful transformation.
      */
     public Saxeed addTransformation(TransformationBuilder transformation) {
         return addTransformation(transformation, new Target.DevNullTarget());
@@ -132,7 +132,7 @@ public class Saxeed {
             // Provide more descriptive error message for parsing errors
             String msg = ex.getMessage().replace("[.]$", "");
             throw new FailedReading(String.format(
-                    "Failed parsing input file: %s at [%d:%d]", msg, ex.getLineNumber(), ex.getColumnNumber()
+                    "Failed parsing input: %s at [%d:%d]", msg, ex.getLineNumber(), ex.getColumnNumber()
             ), ex);
         } catch (SAXException ex) {
             throw new FailedTransforming("Failed processing input file", ex);

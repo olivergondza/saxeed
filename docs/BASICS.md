@@ -30,11 +30,13 @@ The visitor methods are invoked when corresponding even is encountered in the in
 
 Depending on a particular method invoked, the visitor can perform modifications on visited tags — the modified version will be sent to target.
 
+See [Implementing Visitors](./VISITORS.md) for more details.
+
 ## Transformations
 
 Transformation is a composition of visitors *subscribed* to certain tag sets.
 A transformation with no visitors simply writes the input XML document to its target.
-It will also be empty if the visitors perform no modifications (or additions or removals) to subscribed tags. 
+It will also be unchanged if the visitors perform no modifications, additions or removals to subscribed tags. 
 
 Client can register any number of transformations, provided they output to a different targets.
 Parallel transformations are executed independently on one another, but still during a single pass through the input XML document.
@@ -46,4 +48,4 @@ Each visitor can either be subscribed to all the tags in the document (`Subscrib
 
 Same as single visitor can be subscribed to multiple tag names, multiple visitors are subscribed for the same tag name.
 Then, they are executed in the order of their addition for "opening events" and in reversed addition order for "closing events".
-So for example on `</entry>` all the visitors subscribed to "entry" (or all the tags) have their `startTag(Tag)` method called.
+So for example on `</entry>` all the visitors subscribed to "entry" (or all the tags) have their `endTag(Tag)` method called.

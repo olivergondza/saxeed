@@ -9,12 +9,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class SaxeedTest {
@@ -190,6 +192,41 @@ class SaxeedTest {
     }
 
     @Test
+    void wrapInvisibleForOtherVisitors() {
+        TransformationBuilder t = new TransformationBuilder();
+
+        ArrayList<String> events = new ArrayList<>(3);
+
+        t.add("e", new UpdatingVisitor() {
+            @Override
+            public void startTag(Tag.Start tag) throws FailedTransforming {
+                tag.wrapWith("w");
+                events.add("wrapped element's visitors");
+            }
+        });
+        t.add("e", new UpdatingVisitor() {
+            @Override
+            public void startTag(Tag.Start tag) throws FailedTransforming {
+                assertNotNull(tag.getParent("r"));
+                events.add("have same parent in startTag");
+            }
+
+            @Override
+            public void endTag(Tag.End tag) throws FailedTransforming {
+                assertNotNull(tag.getParent("w"));
+                events.add("and substituted in enfTag");
+            }
+        });
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        new Saxeed().setInputString("<r><e/></r>").addTransformation(t, baos).transform();
+
+        assertEquals("<r><w><e></e></w></r>", baos.toString());
+        assertEquals(List.of(
+                "wrapped element's visitors", "have same parent in startTag", "and substituted in enfTag"
+        ), events);
+    }
+
+    @Test
     void addChildren() {
         // Add children to the beginning and to the end of the tag
         UpdatingVisitor addch = new UpdatingVisitor() {
@@ -263,9 +300,7 @@ class SaxeedTest {
 
     private static String transform(String input, UpdatingVisitor visitor, String... on) {
         TransformationBuilder tb = new TransformationBuilder();
-        for (String tag: on) {
-            tb.add(tag, visitor);
-        }
+        tb.add(Subscribed.to(on), visitor);
 
         Saxeed saxeed = new Saxeed().setInputString(input);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();

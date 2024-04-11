@@ -34,8 +34,8 @@ More complex changes can be implemented by subscribing visitors to multiple tags
 
 ## Usage
 
-[Basic Concepts](./docs/BASICS.md)
-[Implementing Visitors](./docs/VISITORS.md)
+- [Basic Concepts](./docs/BASICS.md)
+- [Implementing Visitors](./docs/VISITORS.md)
 
 ### Dependency
 

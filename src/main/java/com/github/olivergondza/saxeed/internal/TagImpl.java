@@ -13,13 +13,11 @@ import java.util.stream.Collectors;
  * It provides accessors to element data, and mutator methods for a visitor to communicate the decision of what to write.
  *
  * Implementation note: The actual class is hidden for client to only use the interface(s). This has dedicated
- * sub-interfaces for Visitor call argument, but the exact same instance is passed. The point is to provide a compile-time
- * guarantee that methods that are called as certain stage can legally be called. IOW, when closing tag, method modifying
- * attributes will nt be available.
+ * sub-interfaces for Visitor call argument, but the exact same instance is passed to each method. The point is to
+ * provide a compile-time guarantee that operations used can legally be performed at given time. For example, when
+ * closing tag, method modifying attributes will not be available because they are already written.
  */
-/*package*/ class TagImpl implements
-        Tag, Tag.Start, Tag.End
-{
+/*package*/ class TagImpl implements Tag, Tag.Start, Tag.End {
 
     private /*almost final*/ TagImpl parent;
 

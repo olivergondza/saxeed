@@ -9,7 +9,7 @@ Namely, `Tag` implementations.
 
 It provides access to the tag name, but more importantly tag attributes.
 
-Also, the chain of parents is also available.
+The chain of parents is also available.
 They are too implementations of `Tag` interface, so they can be looked up, and decisions can be made based on their state.
 
 Note the tag ancestors (parent and its ancestors) can only access data, but not modify it, because they have been written already.
