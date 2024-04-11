@@ -48,25 +48,25 @@ class SubscribeTest {
                     public void startTag(Tag.Start tag) throws FailedTransforming {
                         if (tag.isGenerated()) return;
 
-                        tag.addChild(newElement("as"));
+                        tag.addChild("as");
                     }
 
                     @Override
                     public void endTag(Tag.End tag) throws FailedTransforming {
                         if (tag.isGenerated()) return;
 
-                        tag.addChild(newElement("ae"));
+                        tag.addChild("ae");
                     }
                 }))
                 .add("r", new UpdatingVisitor() {
                     @Override
                     public void startTag(Tag.Start tag) throws FailedTransforming {
-                        tag.addChild(newElement("ns"));
+                        tag.addChild("ns");
                     }
 
                     @Override
                     public void endTag(Tag.End tag) throws FailedTransforming {
-                        tag.addChild(newElement("ne"));
+                        tag.addChild("ne");
                     }
                 })
         ;

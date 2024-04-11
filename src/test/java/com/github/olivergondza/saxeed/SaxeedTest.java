@@ -1,15 +1,10 @@
 package com.github.olivergondza.saxeed;
 
-import com.github.olivergondza.saxeed.ex.FailedReading;
 import com.github.olivergondza.saxeed.ex.FailedTransforming;
-import com.github.olivergondza.saxeed.ex.FailedWriting;
-import org.dom4j.DocumentHelper;
-import org.dom4j.Element;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.xml.stream.XMLOutputFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -173,10 +168,10 @@ class SaxeedTest {
     @Test
     void wrap() {
         Consumer<Tag.Start> wrap = ts -> {
-            Element element = DocumentHelper.createElement("wrapper");
-            element.addAttribute("a1", "v1");
-            element.addAttribute("a2", "v2");
-            ts.wrapWith(element);
+            Tag.Start element = ts.wrapWith("wrapper");
+            Map<String, String> attrs = element.getAttributes();
+            attrs.put("a1", "v1");
+            attrs.put("a2", "v2");
         };
         assertEquals(
                 "<wrapper a1=\"v1\" a2=\"v2\"><a></a></wrapper>",
@@ -187,7 +182,6 @@ class SaxeedTest {
                 "<r><wrapper a1=\"v1\" a2=\"v2\"><a></a></wrapper></r>",
                 transform("<r><a></a></r>", wrap, "a")
         );
-
 
         assertEquals(
                 "<wrapper a1=\"v1\" a2=\"v2\"><a><i><wrapper a1=\"v1\" a2=\"v2\"><a></a></wrapper></i></a></wrapper>",
@@ -201,15 +195,13 @@ class SaxeedTest {
         UpdatingVisitor addch = new UpdatingVisitor() {
             @Override
             public void startTag(Tag.Start tag) throws FailedTransforming {
-                tag.addChildren(List.of(
-                        newElement("head"),
-                        newElement("neck", Map.of("a", ""))
-                ));
+                tag.addChild("head");
+                tag.addChild("neck").getAttributes().put("a", "");
             }
 
             @Override
             public void endTag(Tag.End tag) throws FailedTransforming {
-                tag.addChild(newElement("tail", List.of(newElement("tail"))));
+                tag.addChild("tail").addChild("tail");
             }
         };
 
@@ -243,7 +235,7 @@ class SaxeedTest {
         UpdatingVisitor uv = new UpdatingVisitor() {
             @Override
             public void startTag(Tag.Start tag) throws FailedTransforming {
-                tag.addChild(newElement("r"));
+                tag.addChild( "r");
             }
         };
 

@@ -1,7 +1,6 @@
 package com.github.olivergondza.saxeed.internal;
 
 import com.github.olivergondza.saxeed.Tag;
-import org.dom4j.Element;
 import org.xml.sax.Attributes;
 
 import java.util.*;
@@ -34,8 +33,10 @@ import java.util.stream.Collectors;
 
     /**
      * Possibly modified list of attributes.
+     *
+     * Preserve insertion order.
      */
-    private Map<String, String> attributes;
+    private LinkedHashMap<String, String> attributes;
 
     /**
      * Modifiable indication of tag write/delete.
@@ -45,18 +46,36 @@ import java.util.stream.Collectors;
     /**
      * List of children to be added.
      */
-    private final List<Element> childrenToAdd = new ArrayList<>();
+    private final List<Tag> childrenToAdd = new ArrayList<>();
 
     /**
      *  Element that current element should be surrounded with.
      */
-    private Element wrapWith;
+    private TagImpl wrapWith;
 
-    /*package*/ TagImpl(TagImpl parent, String name, Attributes attrs, boolean generated) {
-        this.parent = parent;
+    /**
+     * Create generated Tag.
+     */
+    private TagImpl(TagImpl parent, String name) {
+        init(parent);
+        this.name = name;
+        this.attrs = null; // No SAX attrs, setting attributes right away
+        this.attributes = new LinkedHashMap<>();
+        this.generated = true;
+    }
+
+    /**
+     * Create Tag from input.
+     */
+    public TagImpl(TagImpl parent, String name, Attributes attrs) {
+        init(parent);
         this.name = name;
         this.attrs = attrs;
-        this.generated = generated;
+        this.generated = false;
+    }
+
+    private void init(TagImpl parent) {
+        this.parent = parent;
 
         // Inherit the write mode based on the parent's one.
         if (parent != null) {
@@ -70,7 +89,7 @@ import java.util.stream.Collectors;
     @Override
     public Map<String, String> getAttributes() {
         if (attributes == null) {
-            attributes = new HashMap<>(attrs.getLength());
+            attributes = new LinkedHashMap<>(attrs.getLength());
             for (int i = 0; i < attrs.getLength(); i++) {
                 attributes.put(attrs.getQName(i), attrs.getValue(i));
             }
@@ -114,13 +133,16 @@ import java.util.stream.Collectors;
     }
 
     @Override
-    public void addChildren(List<Element> children) {
-        childrenToAdd.addAll(children);
+    public TagImpl addChild(String name) {
+        TagImpl child = new TagImpl(this, name);
+        childrenToAdd.add(child);
+        return child;
     }
 
     @Override
-    public void addChild(Element child) {
-        childrenToAdd.add(child);
+    public TagImpl wrapWith(String name) {
+        this.wrapWith = new TagImpl(parent, name);
+        return this.wrapWith;
     }
 
     /**
@@ -133,15 +155,6 @@ import java.util.stream.Collectors;
 
     /*package*/ boolean isCharactersOmitted() {
         return !writeMode.writeText;
-    }
-
-    @Override
-    public void wrapWith(Element wrapWith) {
-        if (this.wrapWith != null) throw new AssertionError(
-                "Unable to wrap with multiple elements. Existing " + wrapWith
-        );
-
-        this.wrapWith = wrapWith;
     }
 
     @Override
@@ -169,40 +182,47 @@ import java.util.stream.Collectors;
         return getAttributes().remove(attr);
     }
 
-    /*package*/ List<Element> getTagsAdded() {
+    /*package*/ List<Tag> getTagsAdded() {
         return childrenToAdd;
     }
 
-    /*package*/ Element getWrapWith() {
+    /*package*/ Tag getWrapWith() {
         return wrapWith;
     }
 
     // The hierarchy of tag parents needs to be fixed as we have injected a new one
     // between `this` and `this.parent`
-    /*package*/ TagImpl wrapInto(String name, Attributes attrs) {
-        insertParent(new TagImpl(this.parent, name, attrs, false));
-        return this.parent;
-    }
+    /*package*/ TagImpl startWrapWith() {
+        // Noop if not configured
+        if (wrapWith == null) return null;
 
-    private void insertParent(TagImpl candidate) {
+        TagImpl newParent = wrapWith;
+
         if (this.parent != null) {
 
-            if (candidate.parent != this.parent) throw new AssertionError(
+            if (newParent.parent != this.parent) throw new AssertionError(
                     "Unable to set parent, invalid grandparent:" +
                             "\n  this:        " + this.getName() +
                             "\n  this.parent: " + (this.parent == null ? null : this.parent.name) +
-                            "\n  new:         " + candidate.getName() +
-                            "\n  new.parent:  " + (candidate.parent == null ? null : candidate.parent.name)
+                            "\n  new:         " + newParent.getName() +
+                            "\n  new.parent:  " + (newParent.parent == null ? null : newParent.parent.name)
             );
 
             traverseParentChain(tag -> {
-                if (tag == candidate) throw new AssertionError(
-                        String.format("Cannot insert parent %s. Already in %s", candidate.getName(), this)
+                if (tag == newParent) throw new AssertionError(
+                        String.format("Cannot insert parent %s. Already in %s", newParent.getName(), this)
                 );
             });
         }
 
-        this.parent = candidate;
+        this.parent = newParent;
+        return newParent;
+    }
+
+    /*package*/ TagImpl endWrapWith() {
+        TagImpl old = this.wrapWith;
+        this.wrapWith = null;
+        return old;
     }
 
     public String toString() {

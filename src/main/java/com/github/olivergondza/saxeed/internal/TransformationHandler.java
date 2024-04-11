@@ -1,27 +1,20 @@
 package com.github.olivergondza.saxeed.internal;
 
 import com.github.olivergondza.saxeed.Subscribed;
+import com.github.olivergondza.saxeed.Tag;
 import com.github.olivergondza.saxeed.UpdatingVisitor;
 import com.github.olivergondza.saxeed.ex.FailedTransforming;
 import com.github.olivergondza.saxeed.ex.FailedWriting;
-import org.dom4j.Attribute;
-import org.dom4j.Element;
-import org.dom4j.Node;
 import org.xml.sax.Attributes;
-import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -57,7 +50,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     }
 
     private TagImpl enterTag(String tagname, Attributes attributes) {
-        currentTag = new TagImpl(currentTag, tagname, attributes, false);
+        currentTag = new TagImpl(currentTag, tagname, attributes);
         return currentTag;
     }
 
@@ -76,22 +69,15 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             if (tag.isOmitted()) return;
         }
 
-        Element sw = tag.getWrapWith();
-
-        if (sw != null) {
-
-            TagImpl wrapper = tag.wrapInto(sw.getName(), getSaxAttributes(sw));
-            _startElement(wrapper);
-
-            if (!Objects.equals(sw.getTextTrim(), "")) {
-                throw new AssertionError("Writing text content not supported for added tags");
-            }
-
-            if (!sw.content().isEmpty()) {
+        TagImpl wrapper = tag.startWrapWith();
+        if (wrapper != null) {
+            if (!(wrapper.getTagsAdded().isEmpty())) {
                 throw new AssertionError(
-                        "Writing sub-elements is not supported for suround with elements: " + sw.content()
+                        "Writing sub-elements is not supported for suround with elements: " + wrapper.getTagsAdded()
                 );
             }
+
+            _startElement(wrapper);
         }
 
         try {
@@ -135,35 +121,22 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
      *
      * This is implemented through call XUnitFixer's handler methods, so Fixup impls are aware of newly added tags.
      */
-    private void writeTagsRecursively(List<Element> tagsAdded) {
+    private void writeTagsRecursively(List<Tag> tagsAdded) {
         if (tagsAdded.isEmpty()) return;
 
         TagImpl oldCurrentTag = currentTag;
-        for (Element element : tagsAdded) {
+        for (Tag tag: tagsAdded) {
 
-            currentTag = new TagImpl(oldCurrentTag, element.getName(), getSaxAttributes(element), true);
+            currentTag = (TagImpl) tag;
             _startElement(currentTag);
-            if (!Objects.equals(element.getTextTrim(), "")) {
-                throw new AssertionError("Writing text content not supported for added tags");
-            }
 
-            for (Node node : element.content()) {
-                if (!(node instanceof Element)) throw new AssertionError(
-                        "Writing non-Elements is not supported. Given: " + node.getClass()
-                );
-                writeTagsRecursively(List.of((Element) node));
+
+            for (Tag child: currentTag.getTagsAdded()) {
+                writeTagsRecursively(List.of(child));
             }
-            endElement(null, null, element.getName());
+            endElement(null, null, currentTag.getName());
         }
         currentTag = oldCurrentTag;
-    }
-
-    private static AttributesImpl getSaxAttributes(Element element) {
-        AttributesImpl attrs = new AttributesImpl();
-        for (Attribute src : element.attributes()) {
-            attrs.addAttribute(null, null, src.getName(), "string", src.getValue());
-        }
-        return attrs;
     }
 
     @Override
@@ -197,9 +170,9 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
 
         currentTag = (TagImpl) currentTag.getParent();
 
-        Element sw = tag.getWrapWith();
-        if (sw != null) {
-            endElement(null, null, sw.getName());
+        TagImpl ww = tag.endWrapWith();
+        if (ww != null) {
+            endElement(null, null, ww.getName());
         }
     }
 

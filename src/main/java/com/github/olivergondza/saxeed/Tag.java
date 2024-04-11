@@ -1,9 +1,6 @@
 package com.github.olivergondza.saxeed;
 
-import org.dom4j.Element;
-
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -28,7 +25,6 @@ public interface Tag {
     boolean isOmitted();
 
     interface Start extends Tag {
-        void wrapWith(Element wrapWith);
 
         void skip();
 
@@ -40,14 +36,12 @@ public interface Tag {
 
         String removeAttribute(String attr);
 
-        void addChildren(List<Element> children);
+        Tag.Start addChild(String name);
 
-        void addChild(Element child);
+        Tag.Start wrapWith(String name);
     }
 
     interface End extends Tag {
-        void addChildren(List<Element> children);
-
-        void addChild(Element child);
+        Tag.Start addChild(String name);
     }
 }
