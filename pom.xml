@@ -5,7 +5,7 @@
 
     <groupId>com.github.olivergondza</groupId>
     <artifactId>saxeed</artifactId>
-    <version>1.2-SNAPSHOT</version>
+    <version>Controlled by maven-git-versioning-extension</version>
     <description>Sufficiently Advanced XML Eventing Editor</description>
 
     <name>saxeed</name>

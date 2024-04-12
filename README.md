@@ -59,5 +59,6 @@ Saxeed is an Open Source library, and we welcome contribution. File your Issue o
 
 The library is released to maven central.
 
-To produce a new release, update version in pom.xml and run `mvn deploy`.
-Note this is used for both releases and snapshots.
+To produce a new release, run ` git tag X.Y.Z` and then `mvn deploy`.
+
+To deploy `-SNAPSHOT`, run `mvn deploy` on a commit without tag.
