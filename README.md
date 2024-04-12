@@ -2,6 +2,10 @@
 
 Your user-friendly SAX wrapper to transform XML files easily, with memory consumption in mind.
 
+[![Saxeed CI](https://github.com/olivergondza/saxeed/actions/workflows/ci.yaml/badge.svg)](https://github.com/olivergondza/saxeed/actions/workflows/ci.yaml)
+[![Maven Central Version](https://img.shields.io/maven-central/v/com.github.olivergondza/saxeed)](https://central.sonatype.com/artifact/com.github.olivergondza/saxeed)
+[![javadoc](https://javadoc.io/badge2/com.github.olivergondza/saxeed/javadoc.svg)](https://javadoc.io/doc/com.github.olivergondza/saxeed)
+
 ## Spirit
 
 Saxeed, a SAX wrapper, stream process XML input performing modifications to its outputs based on predefined transformation(s).
@@ -36,18 +40,6 @@ More complex changes can be implemented by subscribing visitors to multiple tags
 
 - [Basic Concepts](./docs/BASICS.md)
 - [Implementing Visitors](./docs/VISITORS.md)
-
-### Dependency
-
-To consume the library in maven:
-
-```xml
-<dependency>
-    <groupId>com.github.olivergondza</groupId>
-    <artifactId>saxeed</artifactId>
-    <version>...</version>
-</dependency>
-```
 
 ## Maintenance
 
