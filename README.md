@@ -32,7 +32,7 @@ Each tag visitor have access to / can modify the following:
 | Change Attributes                  | ☑                      | ☐                      |
 | Delete Tag (`unwrap()`)            | ☑                      | ☐                      |
 | Delete Tag Recursively (`skip()`)  | ☑                      | ☐                      |
-| Delete Child Tags (`empty()`)           | ☑                      | ☐                      |
+| Delete Child Tags (`empty()`)      | ☑                      | ☐                      |
 
 More complex changes can be implemented by subscribing visitors to multiple tags, and retaining information between their visits.  
 
