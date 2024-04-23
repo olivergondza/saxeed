@@ -1,7 +1,6 @@
 package com.github.olivergondza.saxeed.internal;
 
 import com.github.olivergondza.saxeed.Subscribed;
-import com.github.olivergondza.saxeed.Tag;
 import com.github.olivergondza.saxeed.UpdatingVisitor;
 import com.github.olivergondza.saxeed.ex.FailedTransforming;
 import com.github.olivergondza.saxeed.ex.FailedWriting;
@@ -37,7 +36,9 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     private final XMLStreamWriter writer;
     // A resource to close once done. Can be null
     private final AutoCloseable closeAction;
+
     private TagImpl currentTag;
+    private final CharChunk currentChars = new CharChunk();
 
     public TransformationHandler(
             LinkedHashMap<UpdatingVisitor, Subscribed> visitors,
@@ -71,9 +72,10 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
 
         TagImpl wrapper = tag.startWrapWith();
         if (wrapper != null) {
-            if (!(wrapper.getTagsAdded().isEmpty())) {
+            List<Element> children = wrapper.consumeChildren();
+            if (!(children.isEmpty())) {
                 throw new AssertionError(
-                        "Writing sub-elements is not supported for suround with elements: " + wrapper.getTagsAdded()
+                        "Writing sub-elements is not supported for surround with elements: " + children
                 );
             }
 
@@ -89,8 +91,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             }
             LOGGER.fine(">");
 
-            writeTagsRecursively(tag.getTagsAdded());
-            tag.getTagsAdded().clear();
+            writeChildren(tag);
         } catch (XMLStreamException e) {
             throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
         }
@@ -118,24 +119,35 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
 
     /**
      * Write now tags to output stream.
-     *
+     * <p>
      * This is implemented through call XUnitFixer's handler methods, so Fixup impls are aware of newly added tags.
      */
-    private void writeTagsRecursively(List<TagImpl> tagsAdded) {
-        if (tagsAdded.isEmpty()) return;
+    private boolean writeChildren(TagImpl tag) {
+        List<Element> childElements = tag.consumeChildren();
+        if (childElements.isEmpty()) return false;
 
         TagImpl oldCurrentTag = currentTag;
-        for (TagImpl tag: tagsAdded) {
+        for (Element elements: childElements) {
 
-            currentTag = tag;
-            _startElement(currentTag);
+            if (elements instanceof TagImpl) {
+                currentTag = (TagImpl) elements;
+                _startElement(currentTag);
 
-            for (TagImpl child: currentTag.getTagsAdded()) {
-                writeTagsRecursively(List.of(child));
+                writeChildren(currentTag);
+                endElement(null, null, currentTag.getName());
+            } else if (elements instanceof Element.SelfWriting) {
+                Element.SelfWriting sw = (Element.SelfWriting) elements;
+                try {
+                    sw.write(writer);
+                } catch(XMLStreamException ex) {
+                    throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, ex);
+                }
+            } else {
+                throw new AssertionError("Unknown Element implementation found: " + elements.getClass());
             }
-            endElement(null, null, currentTag.getName());
         }
         currentTag = oldCurrentTag;
+        return true;
     }
 
     @Override
@@ -156,8 +168,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
                 visitors.get(i).endTag(tag);
             }
 
-            writeTagsRecursively(tag.getTagsAdded());
-            tag.getTagsAdded().clear();
+            writeChildren(tag);
 
             try {
                 LOGGER.fine("</" + tagname + ">");
@@ -176,14 +187,30 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     }
 
     @Override
-    public void characters(char[] ch, int start, int length) {
+    public void characters(char[] orig, int start, int length) {
         TagImpl tag = currentTag;
 
         if (tag != null && !tag.isCharactersOmitted()) {
             try {
-                writer.writeCharacters(ch, start, length);
+                currentChars.update(orig, start, length);
+                for (UpdatingVisitor visitor : getVisitors(tag.getName())) {
+                    visitor.chars(tag, currentChars);
+                }
+
+                boolean written = writeChildren(tag);
+                if (!currentChars.isEmpty()) {
+                    if (written) {
+                        throw new IllegalStateException(
+                                "Unable to write characters and children at the same time. "
+                                + "Make sure to call CharChunk#clear() when elements added in UpdatingVisitor#chars()"
+                        );
+                    }
+                    currentChars.write(writer);
+                }
             } catch (XMLStreamException e) {
                 throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
+            } finally {
+                currentChars.clear();
             }
         }
     }

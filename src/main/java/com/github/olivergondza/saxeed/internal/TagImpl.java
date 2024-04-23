@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * provide a compile-time guarantee that operations used can legally be performed at given time. For example, when
  * closing tag, method modifying attributes will not be available because they are already written.
  */
-/*package*/ class TagImpl implements Tag, Tag.Start, Tag.End {
+/*package*/ class TagImpl implements Element, Tag, Tag.Start, Tag.Chars, Tag.End {
 
     private /*almost final*/ TagImpl parent;
 
@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
     /**
      * List of children to be added.
      */
-    private final List<TagImpl> childrenToAdd = new ArrayList<>();
+    private final List<Element> childElements = new ArrayList<>();
 
     /**
      *  Element that current element should be surrounded with.
@@ -133,8 +133,12 @@ import java.util.stream.Collectors;
     @Override
     public TagImpl addChild(String name) {
         TagImpl child = new TagImpl(this, name);
-        childrenToAdd.add(child);
+        childElements.add(child);
         return child;
+    }
+
+    public void addText(String text) {
+        childElements.add(new Element.TextString(text));
     }
 
     @Override
@@ -180,8 +184,13 @@ import java.util.stream.Collectors;
         return getAttributes().remove(attr);
     }
 
-    /*package*/ List<TagImpl> getTagsAdded() {
-        return childrenToAdd;
+    /**
+     * Elements that visitors decided to add.
+     */
+    /*package*/ List<Element> consumeChildren() {
+        List<Element> out = new ArrayList<>(childElements);
+        childElements.clear();
+        return out;
     }
 
     // The hierarchy of tag parents needs to be fixed as we have injected a new one

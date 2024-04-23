@@ -72,7 +72,7 @@ class SaxeedTest {
     @Test
     void processingInstructionWritten() {
         String same = "<?xml-stylesheet type=\"text/xsl\" href=\"style.xsl\"?><a></a>";
-        assertEquals(same, transform(
+        assertEquals(same, Util.transform(
                 same,
                 (ts) -> {},
                 "a"
@@ -82,7 +82,7 @@ class SaxeedTest {
     @Test
     void entity() {
         String same = "<r>&lt;<i>&amp;</i>&gt;</r>";
-        assertEquals(same, transform(
+        assertEquals(same, Util.transform(
                 same,
                 (ts) -> {},
                 "r"
@@ -92,7 +92,7 @@ class SaxeedTest {
     @Test
     void whitespace() {
         String same = "<r><s> </s> <t>\t</t>\t<nl>\n</nl>\n</r>";
-        assertEquals(same, transform(
+        assertEquals(same, Util.transform(
                 same,
                 (ts) -> {},
                 "r"
@@ -101,7 +101,7 @@ class SaxeedTest {
 
     @Test
     void cdata() {
-        assertEquals("<r>Some\tText&amp;Here</r>", transform(
+        assertEquals("<r>Some\tText&amp;Here</r>", Util.transform(
                 "<r><![CDATA[Some\tText&Here]]></r>",
                 (ts) -> {},
                 "r"
@@ -110,19 +110,19 @@ class SaxeedTest {
 
     @Test
     void skip() {
-        assertEquals("", transform(
+        assertEquals("", Util.transform(
                 "<root>skip</root>",
                 Tag.Start::skip,
                 "root"
         ));
 
-        assertEquals("<a>keepkeep</a>", transform(
+        assertEquals("<a>keepkeep</a>", Util.transform(
                 "<a>keep<skip>skip<child/>skip<another>skip</another>skip</skip>keep</a>",
                 Tag.Start::skip,
                 "skip"
         ));
 
-        assertEquals("<a><w></w></a>", transform(
+        assertEquals("<a><w></w></a>", Util.transform(
                 "<a><skip><child/></skip><w><skip/></w></a>",
                 Tag.Start::skip,
                 "skip"
@@ -131,7 +131,7 @@ class SaxeedTest {
 
     @Test
     void empty() {
-        String actual = transform(
+        String actual = Util.transform(
                 "<a>keep1<empty><child/>skip<another>skip</another></empty>keep<s>keep</s></a>",
                 Tag.Start::empty,
                 "empty"
@@ -142,7 +142,7 @@ class SaxeedTest {
 
     @Test
     void unwrap() {
-        String actual = transform(
+        String actual = Util.transform(
                 "<a>keep<unwrap>keep<child/><another><unwrap><foo/>keep</unwrap></another></unwrap>keep</a>",
                 Tag.Start::unwrap,
                 "unwrap"
@@ -153,7 +153,7 @@ class SaxeedTest {
 
     @Test
     void attributes() {
-        String actual = transform(
+        String actual = Util.transform(
                 "<root a='v'><child a='v'></child></root>",
                 ts -> {
                     ts.removeAttribute("no_such_attr");
@@ -177,17 +177,17 @@ class SaxeedTest {
         };
         assertEquals(
                 "<wrapper a1=\"v1\" a2=\"v2\"><a></a></wrapper>",
-                transform("<a></a>", wrap, "a")
+                Util.transform("<a></a>", wrap, "a")
         );
 
         assertEquals(
                 "<r><wrapper a1=\"v1\" a2=\"v2\"><a></a></wrapper></r>",
-                transform("<r><a></a></r>", wrap, "a")
+                Util.transform("<r><a></a></r>", wrap, "a")
         );
 
         assertEquals(
                 "<wrapper a1=\"v1\" a2=\"v2\"><a><i><wrapper a1=\"v1\" a2=\"v2\"><a></a></wrapper></i></a></wrapper>",
-                transform("<a><i><a/></i></a>", wrap, "a")
+                Util.transform("<a><i><a/></i></a>", wrap, "a")
         );
     }
 
@@ -244,7 +244,7 @@ class SaxeedTest {
 
         assertEquals(
                 "<r><head></head><neck a=\"\"></neck><existing></existing><tail><tail></tail></tail></r>",
-                transform("<r><existing/></r>", addch, "r")
+                Util.transform("<r><existing/></r>", addch, "r")
         );
     }
 
@@ -277,7 +277,7 @@ class SaxeedTest {
         };
 
         try {
-            transform("<r/>", uv, "r");
+            Util.transform("<r/>", uv, "r");
             fail();
         } catch (AssertionError ex) {
             assertEquals(
@@ -285,28 +285,5 @@ class SaxeedTest {
                     ex.getMessage().substring(0, 35)
             );
         }
-    }
-
-    String transform(String input, Consumer<Tag.Start> lambda, String... on) {
-        UpdatingVisitor visitor = new UpdatingVisitor() {
-            @Override
-            public void startTag(Tag.Start tag) throws FailedTransforming {
-                lambda.accept(tag);
-            }
-        };
-
-        return transform(input, visitor, on);
-    }
-
-    private static String transform(String input, UpdatingVisitor visitor, String... on) {
-        TransformationBuilder tb = new TransformationBuilder();
-        tb.add(Subscribed.to(on), visitor);
-
-        Saxeed saxeed = new Saxeed().setInputString(input);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        saxeed.addTransformation(tb, baos);
-        saxeed.transform();
-
-        return baos.toString();
     }
 }

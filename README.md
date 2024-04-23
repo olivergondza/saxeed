@@ -20,19 +20,19 @@ Saxeed strives to add as much convenience on top of plain old SAX, while adding 
 
 ### Capabilities
 
-Each tag visitor have access to / can modify the following: 
+Each tag visitor do the following: 
 
-|                                    | Tag Start              | Tag End                |
-|------------------------------------|------------------------|------------------------|
-| Access Tag attributes              | ☑                      | ☑                      |
-| Access Parent(s) Tag attributes    | ☑                      | ☑                      |
-| Add Child Tags                     | ☑                      | ☑ (before closing tag) |
-| Add Sibling Tags (NOT IMPLEMENTED) | ☑ (before and after)   | ☑ (only after)         |
-| Add Parent Tag (`wrapWith()`)      | ☑                      | ☐                      |
-| Change Attributes                  | ☑                      | ☐                      |
-| Delete Tag (`unwrap()`)            | ☑                      | ☐                      |
-| Delete Tag Recursively (`skip()`)  | ☑                      | ☐                      |
-| Delete Child Tags (`empty()`)      | ☑                      | ☐                      |
+|                                         | Tag Start              | Tag End                | Text Content |
+|-----------------------------------------|------------------------|------------------------|--------------|
+| Access Tag attributes                   | ☑                      | ☑                      | ☑            |
+| Access Parent(s) Tag attributes         | ☑                      | ☑                      | ☑            |
+| Add Child Tags/Text                     | ☑                      | ☑ (before closing tag) | ☑            |
+| Add Sibling Tags/text (NOT IMPLEMENTED) | ☑ (before and after)   | ☑ (only after)         | ☑            |
+| Add Parent Tag (`wrapWith()`)           | ☑                      | ☐                      | ☑            |
+| Change Attributes                       | ☑                      | ☐                      | ☐            |
+| Delete Tag (`unwrap()`)                 | ☑                      | ☐                      | n/a          |
+| Delete Tag Recursively (`skip()`)       | ☑                      | ☐                      | n/a          |         
+| Delete Child Tags (`empty()`)           | ☑                      | ☐                      | n/a          |
 
 More complex changes can be implemented by subscribing visitors to multiple tags, and retaining information between their visits.  
 

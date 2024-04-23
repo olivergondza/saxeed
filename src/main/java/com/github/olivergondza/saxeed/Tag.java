@@ -106,6 +106,28 @@ public interface Tag {
          * @return Tag instance created.
          */
         Tag.Start wrapWith(String name);
+
+        /**
+         * Set text to write after opening tag.
+         */
+        void addText(String text);
+    }
+
+    interface Chars extends Tag {
+
+        /**
+         * Add new child element.
+         *
+         * Its attributes and children can be added after.
+         *
+         * @return Tag instance added.
+         */
+        Tag.Start addChild(String name);
+
+        /**
+         * Set text to write before closing tag.
+         */
+        void addText(String text);
     }
 
     /**
@@ -122,5 +144,10 @@ public interface Tag {
          * @return Tag instance added.
          */
         Tag.Start addChild(String name);
+
+        /**
+         * Set text to write before closing tag.
+         */
+        void addText(String text);
     }
 }
