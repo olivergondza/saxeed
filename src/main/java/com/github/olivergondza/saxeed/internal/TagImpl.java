@@ -1,6 +1,7 @@
 package com.github.olivergondza.saxeed.internal;
 
 import com.github.olivergondza.saxeed.Tag;
+import com.github.olivergondza.saxeed.TagName;
 import org.xml.sax.Attributes;
 
 import java.util.*;
@@ -21,7 +22,7 @@ import java.util.stream.Collectors;
 
     private /*almost final*/ TagImpl parent;
 
-    private final String name;
+    private final TagName name;
     private final Attributes attrs;
 
     /**
@@ -35,6 +36,11 @@ import java.util.stream.Collectors;
      * Preserve insertion order.
      */
     private LinkedHashMap<String, String> attributes;
+
+    /**
+     * List of namespaces declared on this tag.
+     */
+    private Map<String, String> namespaces;
 
     /**
      * Modifiable indication of tag write/delete.
@@ -54,22 +60,25 @@ import java.util.stream.Collectors;
     /**
      * Create generated Tag.
      */
-    private TagImpl(TagImpl parent, String name) {
-        init(parent);
-        this.name = name;
+    private TagImpl(TagImpl parent, TagName name) {
+        this.name = Objects.requireNonNull(name);
         this.attrs = null; // No SAX attrs, setting attributes right away
         this.attributes = new LinkedHashMap<>();
+        this.namespaces = null;
         this.generated = true;
+        init(parent);
     }
 
     /**
      * Create Tag from input.
      */
-    public TagImpl(TagImpl parent, String name, Attributes attrs) {
-        init(parent);
-        this.name = name;
-        this.attrs = attrs;
+    public TagImpl(TagImpl parent, TagName name, Attributes attrs, Map<String, String> namespaces) {
+        this.name = Objects.requireNonNull(name);
+        this.attrs = Objects.requireNonNull(attrs);
+        // Create defensive copy in either case
+        this.namespaces = namespaces.isEmpty() ? null : new LinkedHashMap<>(namespaces);
         this.generated = false;
+        init(parent);
     }
 
     private void init(TagImpl parent) {
@@ -96,14 +105,36 @@ import java.util.stream.Collectors;
         return attributes;
     }
 
+    /**
+     * Determine if tag have certain local name.
+     *
+     * Note it might, or might not be in a namespace.
+     */
     @Override
     public boolean isNamed(String name) {
-        return Objects.equals(name, this.name);
+        return Objects.equals(name, this.name.getLocal());
+    }
+
+    /**
+     * Determine if local name and NS uri are the same.
+     *
+     * Note the prefix name can be different.
+     */
+    @Override
+    public boolean isNamed(TagName name) {
+        return Objects.equals(name.getLocal(), this.name.getLocal())
+                && Objects.equals(name.getNsUri(), this.name.getNsUri())
+        ;
     }
 
     @Override
     public boolean isGenerated() {
         return generated;
+    }
+
+    @Override
+    public TagName getName() {
+        return name;
     }
 
     // This returns the most restricted interface as the parent have always been written.
@@ -113,12 +144,12 @@ import java.util.stream.Collectors;
     }
 
     @Override
-    public String getName() {
-        return name;
+    public Tag getParent(String name) {
+        return parent != null && parent.isNamed(name) ? parent : null;
     }
 
     @Override
-    public Tag getParent(String name) {
+    public Tag getParent(TagName name) {
         return parent != null && parent.isNamed(name) ? parent : null;
     }
 
@@ -131,7 +162,20 @@ import java.util.stream.Collectors;
     }
 
     @Override
+    public Tag getAncestor(TagName name) {
+        for (TagImpl tag = this.parent; tag != null; tag = tag.parent){
+            if (tag.isNamed(name)) return tag;
+        }
+        return null;
+    }
+
+    @Override
     public TagImpl addChild(String name) {
+        return addChild(this.name.inheritNamespace(name));
+    }
+
+    @Override
+    public TagImpl addChild(TagName name) {
         TagImpl child = new TagImpl(this, name);
         childElements.add(child);
         return child;
@@ -143,8 +187,28 @@ import java.util.stream.Collectors;
 
     @Override
     public TagImpl wrapWith(String name) {
+        return wrapWith(TagName.noNs(name));
+    }
+
+    @Override
+    public TagImpl wrapWith(TagName name) {
         this.wrapWith = new TagImpl(parent, name);
         return this.wrapWith;
+    }
+
+    @Override
+    public void declareNamespace(String uri, String prefix) {
+        if (uri == null || uri.isEmpty()) throw new IllegalArgumentException("Namespace URI must not be null nor empty");
+        if (prefix == null) throw new IllegalArgumentException("Namespace prefix must not be null");
+
+        if (namespaces == null) {
+            namespaces = new LinkedHashMap<>();
+        }
+        namespaces.put(uri, prefix);
+    }
+
+    /*package*/ Map<String, String> getNamespaces() {
+        return namespaces == null ? Map.of() : namespaces;
     }
 
     /**
@@ -239,7 +303,7 @@ import java.util.stream.Collectors;
             if (t.isGenerated()) {
                 sb.insert(0, "(generated)");
             }
-            sb.insert(0, t.getName());
+            sb.insert(0, t.getName().getQualifiedName());
         });
         return sb.toString();
     }
@@ -271,7 +335,7 @@ import java.util.stream.Collectors;
 
     private String printChain(LinkedHashSet<TagImpl> chain) {
         List<String> names = chain.stream()
-                .map(TagImpl::getName)
+                .map(tag -> tag.getName().getQualifiedName())
                 .collect(Collectors.toList())
         ;
         Collections.reverse(names);

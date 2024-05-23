@@ -13,12 +13,13 @@ public interface Tag {
     /**
      * Get element name.
      */
-    String getName();
+    TagName getName();
 
     /**
      * Determine if current tag's name is @name.
      */
     boolean isNamed(String name);
+    boolean isNamed(TagName name);
 
     /**
      * Get Tag's parent
@@ -33,6 +34,7 @@ public interface Tag {
      * @return null for root tag, or when parent name differs, parent otherwise.
      */
     Tag getParent(String name);
+    Tag getParent(TagName name);
 
     /**
      * Get the closest ancestor (wrapping tag) its name is @name.
@@ -40,6 +42,7 @@ public interface Tag {
      * @return null if there is no such ancestor, ancestor otherwise.
      */
     Tag getAncestor(String name);
+    Tag getAncestor(TagName name);
 
     /**
      * Get modifiable attribute map.
@@ -98,6 +101,8 @@ public interface Tag {
          */
         Tag.Start addChild(String name);
 
+        Tag.Start addChild(TagName name);
+
         /**
          * Add new parent element for the current tag.
          *
@@ -107,10 +112,22 @@ public interface Tag {
          */
         Tag.Start wrapWith(String name);
 
+        Tag.Start wrapWith(TagName name);
+
         /**
          * Set text to write after opening tag.
          */
         void addText(String text);
+
+        /**
+         * Declare new namespace on this tag.
+         *
+         * Note that tag name will not be converted to us this prefix
+         *
+         * @param uri Namespace URI
+         * @param prefix Namespace prefix, can be "" for default namespace.
+         */
+        void declareNamespace(String uri, String prefix);
     }
 
     interface Chars extends Tag {
@@ -123,6 +140,8 @@ public interface Tag {
          * @return Tag instance added.
          */
         Tag.Start addChild(String name);
+
+        Tag.Start addChild(TagName name);
 
         /**
          * Set text to write before closing tag.
@@ -144,6 +163,8 @@ public interface Tag {
          * @return Tag instance added.
          */
         Tag.Start addChild(String name);
+
+        Tag.Start addChild(TagName name);
 
         /**
          * Set text to write before closing tag.
