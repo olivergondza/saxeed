@@ -3,9 +3,12 @@ package com.github.olivergondza.saxeed;
 import com.github.olivergondza.saxeed.ex.FailedTransforming;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -314,5 +317,30 @@ class NamespaceTest {
                 "plain>default>", "default(DEFAULT)",
                 "plain>default>A:a>d>", "d(DEFAULT)"
         ), namespaced.visited);
+    }
+
+    @Test
+    void processRealistic() {
+        Subscribed subs = Subscribed.to().namespaceUris("http://www.w3.org/2001/XMLSchema").build();
+
+        class Visitor implements UpdatingVisitor {
+            public final Set<String> qualifiedNames = new HashSet<>();
+
+            @Override
+            public void startTag(Tag.Start tag) throws FailedTransforming {
+                qualifiedNames.add(tag.getName().getQualifiedName());
+            }
+        }
+        Visitor visitor = new Visitor();
+        TransformationBuilder tb = new TransformationBuilder().add(subs, visitor);
+        new Saxeed()
+                .setInput(Path.of("src/test/resources/schema.xsd"))
+                .addTransformation(tb)
+                .transform()
+        ;
+
+        assertEquals(Set.of(
+                "xs:schema", "xs:element", "xs:complexType", "xs:sequence", "xs:attribute"
+        ), visitor.qualifiedNames);
     }
 }
