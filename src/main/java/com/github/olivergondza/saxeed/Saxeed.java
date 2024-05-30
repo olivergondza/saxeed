@@ -155,6 +155,7 @@ public class Saxeed {
             factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
             factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
             factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+            factory.setNamespaceAware(true);
             return factory.newSAXParser();
         } catch (ParserConfigurationException | SAXException e) {
             throw new AssertionError("SAX or its essential features are not supported", e);

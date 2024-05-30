@@ -18,8 +18,13 @@ public class Util {
     }
 
     static String transform(String input, UpdatingVisitor visitor, String... on) {
+        Subscribed subscribed = on.length == 0
+                ? Subscribed.toAll()
+                : Subscribed.to().tagNames(on).build()
+        ;
+
         TransformationBuilder tb = new TransformationBuilder();
-        tb.add(Subscribed.to(on), visitor);
+        tb.add(subscribed, visitor);
 
         return transform(input, tb);
     }

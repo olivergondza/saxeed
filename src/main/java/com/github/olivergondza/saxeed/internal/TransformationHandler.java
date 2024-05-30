@@ -1,6 +1,7 @@
 package com.github.olivergondza.saxeed.internal;
 
 import com.github.olivergondza.saxeed.Subscribed;
+import com.github.olivergondza.saxeed.TagName;
 import com.github.olivergondza.saxeed.UpdatingVisitor;
 import com.github.olivergondza.saxeed.ex.FailedTransforming;
 import com.github.olivergondza.saxeed.ex.FailedWriting;
@@ -31,7 +32,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
      * New instances create for every file, so they can be stateful.
      */
     private final LinkedHashMap<UpdatingVisitor, Subscribed> visitors;
-    private final Map<String, List<UpdatingVisitor>> visitorCache = new HashMap<>();
+    private final Map<TagName, List<UpdatingVisitor>> visitorCache = new HashMap<>();
 
     private final XMLStreamWriter writer;
     // A resource to close once done. Can be null
@@ -39,6 +40,9 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
 
     private TagImpl currentTag;
     private final CharChunk currentChars = new CharChunk();
+    private LinkedHashMap<String, String> currentNsMapping = new LinkedHashMap<>();
+
+    private Map<String, String> documentNamespaces = new HashMap<>();
 
     public TransformationHandler(
             LinkedHashMap<UpdatingVisitor, Subscribed> visitors,
@@ -50,21 +54,26 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
         this.closeAction = closeAction;
     }
 
-    private TagImpl enterTag(String tagname, Attributes attributes) {
-        currentTag = new TagImpl(currentTag, tagname, attributes);
-        return currentTag;
+    @Override
+    public void startPrefixMapping(String prefix, String uri) {
+        documentNamespaces.put(uri, prefix);
+        currentNsMapping.put(uri, prefix);
     }
 
     @Override
-    public void startElement(String uri, String localName, String tagname, Attributes attributes) {
-        TagImpl tag = enterTag(tagname, attributes);
-        _startElement(tag);
+    public void startElement(String uri, String localName, String tagName, Attributes attributes) {
+        TagName tagname = TagName.fromSaxArgs(uri, localName, tagName);
+        currentTag = new TagImpl(currentTag, tagname, attributes, currentNsMapping);
+        currentNsMapping.clear();
+
+        _startElement(currentTag);
     }
 
     private void _startElement(TagImpl tag) {
         if (tag.isOmitted()) return;
 
-        for (UpdatingVisitor v : getVisitors(tag.getName())) {
+        TagName name = tag.getName();
+        for (UpdatingVisitor v : getVisitors(name)) {
             v.startTag(tag);
 
             if (tag.isOmitted()) return;
@@ -75,16 +84,48 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             List<Element> children = wrapper.consumeChildren();
             if (!(children.isEmpty())) {
                 throw new AssertionError(
-                        "Writing sub-elements is not supported for surround with elements: " + children
+                        "Writing sub-tags is not supported for wrapWith tags: " + children
                 );
+            }
+
+            // Wrapping root tag with named namespaces declared. Cary them to the new root tag.
+            Map<String, String> namespaces = tag.getNamespaces();
+            if (wrapper.getParent() == null && !namespaces.isEmpty()) {
+                for (Map.Entry<String, String> e : namespaces.entrySet()) {
+                    wrapper.declareNamespace(e.getKey(), e.getValue());
+                }
+                namespaces.clear();
             }
 
             _startElement(wrapper);
         }
 
         try {
-            LOGGER.fine("<" + tag.getName());
-            writer.writeStartElement(tag.getName());
+            LOGGER.fine("<" + name);
+
+            // Make sure that eventual Tag.Start#declareNamespace() additions are reflected
+            documentNamespaces.putAll(tag.getNamespaces());
+
+            boolean usesNamespace = name.getNsUri().isEmpty();
+            if (usesNamespace) {
+                writer.writeStartElement(name.getLocal());
+            } else {
+                String declaredPrefix = documentNamespaces.get(name.getNsUri());
+                if (declaredPrefix == null) {
+                    throw new FailedTransforming(
+                            "Unable to write tag (" + tag.getName() + "), no such namespace URI declared. Have: " + documentNamespaces
+                    );
+                }
+                if (!Objects.equals(declaredPrefix, name.getNsPrefix())) {
+                    throw new FailedTransforming(
+                            "Unable to write tag (" + tag.getName() + "), no such namespace URI+prefix declared. Prefix: " + declaredPrefix
+                    );
+                }
+                writer.writeStartElement(name.getNsPrefix(), name.getLocal(), name.getNsUri());
+            }
+
+            writeNamespaceDeclarations(tag);
+
             for (Map.Entry<String, String> e : tag.getAttributes().entrySet()) {
                 LOGGER.fine(String.format("%s='%s'", e.getKey(), e.getValue()));
                 writer.writeAttribute(e.getKey(), e.getValue());
@@ -98,11 +139,20 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     }
 
     /**
+     * Write namespace declarations ("xmlns" pseudo-attributes), existing or added
+     */
+    private void writeNamespaceDeclarations(TagImpl tag) throws XMLStreamException {
+        for (Map.Entry<String, String> e : tag.getNamespaces().entrySet()) {
+            writer.writeNamespace(e.getValue(), e.getKey());
+        }
+    }
+
+    /**
      * Get visitors subscribed to given tag name.
      *
      * The result is cached.
      */
-    private List<UpdatingVisitor> getVisitors(String tagName) {
+    private List<UpdatingVisitor> getVisitors(TagName tagName) {
         List<UpdatingVisitor> visitors = visitorCache.get(tagName);
         if (visitors != null) return visitors;
 
@@ -134,7 +184,8 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
                 _startElement(currentTag);
 
                 writeChildren(currentTag);
-                endElement(null, null, currentTag.getName());
+                TagName tn = currentTag.getName();
+                endElement(tn.getNsUri(), tn.getLocal(), tn.getNsPrefix());
             } else if (elements instanceof Element.SelfWriting) {
                 Element.SelfWriting sw = (Element.SelfWriting) elements;
                 try {
@@ -152,17 +203,16 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
 
     @Override
     public void endElement(String uri, String localName, String tagname) {
-        if (currentTag == null) throw new AssertionError("Closing tag without currentTag se");
+        if (currentTag == null) throw new AssertionError("Closing tag without currentTag set");
 
-        if (!Objects.equals(tagname, currentTag.getName())) {
+        if (!Objects.equals(localName, currentTag.getName().getLocal())) {
             throw new AssertionError("Ending element " + tagname + " while inside " + currentTag.getName());
         }
 
         TagImpl tag = currentTag;
 
         if (!tag.isOmitted()) {
-
-            List<UpdatingVisitor> visitors = getVisitors(tagname);
+            List<UpdatingVisitor> visitors = getVisitors(tag.getName());
             // Iterate reversed for closing tag
             for (int i = visitors.size() - 1; i >= 0; i--) {
                 visitors.get(i).endTag(tag);
@@ -182,7 +232,8 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
 
         TagImpl ww = tag.endWrapWith();
         if (ww != null) {
-            endElement(null, null, ww.getName());
+            TagName wwName = ww.getName();
+            endElement(wwName.getNsUri(), wwName.getLocal(), wwName.getQualifiedName());
         }
     }
 
@@ -230,6 +281,13 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             writer.writeProcessingInstruction(target, data);
         } catch (XMLStreamException e) {
             throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
+        }
+    }
+
+    @Override
+    public void startDocument() {
+        for (UpdatingVisitor visitor: this.visitors.keySet()) {
+            visitor.startDocument();
         }
     }
 

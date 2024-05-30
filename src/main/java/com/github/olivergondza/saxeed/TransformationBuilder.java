@@ -14,11 +14,11 @@ public class TransformationBuilder {
     }
 
     public TransformationBuilder add(String tagName, List<UpdatingVisitor> visitors) {
-        return add(Subscribed.to(tagName), visitors);
+        return add(Subscribed.to().tagNames(tagName).build(), visitors);
     }
 
     public TransformationBuilder add(String tagName, UpdatingVisitor visitor) {
-        return add(Subscribed.to(tagName), visitor);
+        return add(Subscribed.to().tagNames(tagName).build(), visitor);
     }
 
     public TransformationBuilder add(Subscribed subs, UpdatingVisitor visitor) {
