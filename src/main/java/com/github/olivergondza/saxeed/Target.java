@@ -6,12 +6,12 @@ import com.github.olivergondza.saxeed.internal.TransformationHandler;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.nio.file.Path;
-import java.util.Objects;
 
 /**
  * Target to write the resulting content into.
@@ -70,7 +70,7 @@ public interface Target {
 
         private OutputStream getOutputStream() throws FailedWriting {
             try {
-                return new FileOutputStream(file);
+                return new BufferedOutputStream(new FileOutputStream(file));
             } catch (FileNotFoundException e) {
                 throw new FailedWriting("Cannot create/open file: " + file.getAbsolutePath(), e);
             }
