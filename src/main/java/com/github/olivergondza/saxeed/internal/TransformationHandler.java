@@ -319,10 +319,4 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             throw new FailedWriting("Failed closing stream", e);
         }
     }
-
-    public static final class DeleteFileException extends FailedTransforming {
-        public DeleteFileException(String message) {
-            super(message);
-        }
-    }
 }

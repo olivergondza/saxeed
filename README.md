@@ -1,6 +1,6 @@
 # Sufficiently Advanced XML Eventing Editor
 
-Your user-friendly SAX wrapper to transform XML files easily, with memory consumption in mind.
+Your user-friendly, namespace aware SAX wrapper to transform XML files easily, with memory consumption in mind.
 
 [![Saxeed CI](https://github.com/olivergondza/saxeed/actions/workflows/ci.yaml/badge.svg)](https://github.com/olivergondza/saxeed/actions/workflows/ci.yaml)
 [![Maven Central Version](https://img.shields.io/maven-central/v/com.github.olivergondza/saxeed)](https://central.sonatype.com/artifact/com.github.olivergondza/saxeed)
@@ -22,7 +22,7 @@ Saxeed strives to add as much convenience on top of plain old SAX, while adding 
 
 Each tag visitor do the following: 
 
-|                                         | Tag Start              | Tag End                | Text Content |
+| operation / event                       | Tag Start              | Tag End                | Text Content |
 |-----------------------------------------|------------------------|------------------------|--------------|
 | Access Tag attributes                   | ☑                      | ☑                      | ☑            |
 | Access Parent(s) Tag attributes         | ☑                      | ☑                      | ☑            |
@@ -51,6 +51,6 @@ Saxeed is an Open Source library, and we welcome contribution. File your Issue o
 
 The library is released to maven central.
 
-To produce a new release, run ` git tag X.Y.Z` and then `mvn deploy`.
+To produce a new release, run `git tag X.Y.Z` and then `mvn deploy`.
 
 To deploy `-SNAPSHOT`, run `mvn deploy` on a commit without tag.

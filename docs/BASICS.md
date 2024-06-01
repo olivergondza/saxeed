@@ -22,6 +22,7 @@ Targets specifies where the resulting XML stream should be written.
 It can be a `File` or `Path` instance to write it to a file system, or an `OutputStream` or `XMLStreamWriter` if more control is needed.
 
 Saxeed always closes the targets that it had opened (files), and never closes targets opened by the client (streams or writers).
+Likewise, it applies output buffering for target it controls, while for the client provided ones, this is a responsibility of the customer.
 
 ## Visitors
 
@@ -46,6 +47,10 @@ Each visitor can either be subscribed to all the tags in the document (`Subscrib
 
 ## Subscriptions
 
-Same as single visitor can be subscribed to multiple tag names, multiple visitors are subscribed for the same tag name.
+Same as single visitor can be subscribed to multiple tag names, multiple visitors can be subscribed the same tag name.
 Then, they are executed in the order of their addition for "opening events" and in reversed addition order for "closing events".
-So for example on `</entry>` all the visitors subscribed to "entry" (or all the tags) have their `endTag(Tag)` method called.
+So for example on `</entry>` all the visitors subscribed to "entry" have their `endTag(Tag)` method called.
+
+The subscription is declared by an instance of `Subscribed` functional interface.
+There is a convenient builder to declare the tags of interest, based on namespace, local tag name, etc.
+Customers can also provide a custom implementation if needed.

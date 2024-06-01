@@ -19,6 +19,10 @@ public interface Tag {
      * Determine if current tag's name is @name.
      */
     boolean isNamed(String name);
+
+    /**
+     * Determine if current tag's name is @name.
+     */
     boolean isNamed(TagName name);
 
     /**
@@ -34,14 +38,26 @@ public interface Tag {
      * @return null for root tag, or when parent name differs, parent otherwise.
      */
     Tag getParent(String name);
+
+    /**
+     * Get Tag's parent iff its name is @name;
+     *
+     * @return null for root tag, or when parent name differs, parent otherwise.
+     */
     Tag getParent(TagName name);
 
     /**
      * Get the closest ancestor (wrapping tag) its name is @name.
      *
-     * @return null if there is no such ancestor, ancestor otherwise.
+     * @return null if there is no such ancestor, first ancestor otherwise.
      */
     Tag getAncestor(String name);
+
+    /**
+     * Get the closest ancestor (wrapping tag) its name is @name.
+     *
+     * @return null if there is no such ancestor, first ancestor otherwise.
+     */
     Tag getAncestor(TagName name);
 
     /**
@@ -101,6 +117,13 @@ public interface Tag {
          */
         Tag.Start addChild(String name);
 
+        /**
+         * Add new child element.
+         *
+         * Its attributes and children can be added after.
+         *
+         * @return Tag instance added.
+         */
         Tag.Start addChild(TagName name);
 
         /**
@@ -112,6 +135,13 @@ public interface Tag {
          */
         Tag.Start wrapWith(String name);
 
+        /**
+         * Add new parent element for the current tag.
+         *
+         * Its attributes and children can be added after.
+         *
+         * @return Tag instance created.
+         */
         Tag.Start wrapWith(TagName name);
 
         /**
@@ -141,6 +171,13 @@ public interface Tag {
          */
         Tag.Start addChild(String name);
 
+        /**
+         * Add new child element.
+         *
+         * Its attributes and children can be added after.
+         *
+         * @return Tag instance added.
+         */
         Tag.Start addChild(TagName name);
 
         /**
@@ -164,6 +201,13 @@ public interface Tag {
          */
         Tag.Start addChild(String name);
 
+        /**
+         * Add new child element.
+         *
+         * Its attributes and children can be added after.
+         *
+         * @return Tag instance added.
+         */
         Tag.Start addChild(TagName name);
 
         /**

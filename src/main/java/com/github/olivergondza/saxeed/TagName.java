@@ -4,6 +4,20 @@ import java.util.Objects;
 
 /**
  * Namespace aware tag name.
+ *
+ * Each tag name consists of namespace URI, namespace prefix, and local name.
+ * For convenience, the qualified name is defined as "namespace prefix" + ':' + "local name".
+ *
+ * The tag name, is uniquely identified by the namespace URI and the local name.
+ * It is discouraged to base subscriptions or transformations based on the name prefix - as that is freely chosen by the document author as a shorthand for the URI.
+ *
+ * Example:
+ *
+ * <pre>
+ *     `&lt;a>` := uri=""; prefix=""; local="a"
+ *     `&lt;a xmlns="XXX">` := uri="XXX"; prefix=""; local="a" (`xmlns` can be declared on a parent tag)
+ *     `&lt;x:a xmlns:x="XXX">` := uri="XXX"; prefix="x"; local="a" (`xmlns:x` can be declared on a parent tag)
+ * </pre>
  */
 public class TagName {
 
@@ -80,6 +94,9 @@ public class TagName {
         return qName;
     }
 
+    /**
+     * Create new TagName inheriting eventual namespace.
+     */
     public TagName inheritNamespace(String name) {
         return new TagName(uri, prefix, name);
     }
