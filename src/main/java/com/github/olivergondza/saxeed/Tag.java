@@ -72,7 +72,7 @@ public interface Tag {
     Bookmark bookmark();
 
     /**
-     * Determine if this tag has been bookmarked the bookmark provided.
+     * Determine if this tag matches the bookmark provided.
      */
     boolean isBookmarked(Bookmark bookmark);
 
