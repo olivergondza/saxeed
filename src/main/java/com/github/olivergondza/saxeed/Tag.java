@@ -1,6 +1,7 @@
 package com.github.olivergondza.saxeed;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -66,6 +67,21 @@ public interface Tag {
     Map<String, String> getAttributes();
 
     /**
+     * Create a bookmark for this element.
+     */
+    Bookmark bookmark();
+
+    /**
+     * Determine if this tag matches the bookmark provided.
+     */
+    boolean isBookmarked(Bookmark bookmark);
+
+    /**
+     * Determine if this tag has been bookmarked by any of the bookmarks provided.
+     */
+    boolean isBookmarked(List<Bookmark> bookmarks);
+
+    /**
      * Determine if the current tag was added by a visitor.
      *
      * In other words, it was not part of an input stream.
@@ -76,7 +92,7 @@ public interface Tag {
     boolean isGenerated();
 
     /**
-     * Determine if the current was removed.
+     * Determine if the current tag was removed.
      *
      * In other words, it will not be written to the Target.
      */

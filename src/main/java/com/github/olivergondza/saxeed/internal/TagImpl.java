@@ -1,10 +1,12 @@
 package com.github.olivergondza.saxeed.internal;
 
+import com.github.olivergondza.saxeed.Bookmark;
 import com.github.olivergondza.saxeed.Tag;
 import com.github.olivergondza.saxeed.TagName;
 import org.xml.sax.Attributes;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -57,15 +59,21 @@ import java.util.stream.Collectors;
      */
     private TagImpl wrapWith;
 
+    private final BookmarkImpl bookmark;
+    private final Map<TagName, AtomicInteger> childCounts = new HashMap<>();
+
     /**
      * Create generated Tag.
      */
     private TagImpl(TagImpl parent, TagName name) {
+        this.parent = parent;
         this.name = Objects.requireNonNull(name);
-        this.attrs = null; // No SAX attrs, setting attributes right away
+        // No SAX attrs, setting attributes right away
+        this.attrs = null;
         this.attributes = new LinkedHashMap<>();
         this.namespaces = null;
         this.generated = true;
+        this.bookmark = initBookmark();
         init(parent);
     }
 
@@ -73,24 +81,34 @@ import java.util.stream.Collectors;
      * Create Tag from input.
      */
     public TagImpl(TagImpl parent, TagName name, Attributes attrs, Map<String, String> namespaces) {
+        this.parent = parent;
         this.name = Objects.requireNonNull(name);
         this.attrs = Objects.requireNonNull(attrs);
         // Create defensive copy in either case
         this.namespaces = namespaces.isEmpty() ? null : new LinkedHashMap<>(namespaces);
         this.generated = false;
+        this.bookmark = initBookmark();
         init(parent);
     }
 
     private void init(TagImpl parent) {
-        this.parent = parent;
-
-        // Inherit the write mode based on the parent's one.
         if (parent != null) {
+            // Inherit the write mode based on the parent's one.
             writeMode = parent.writeMode.children;
         }
 
         // Verify invariant
         traverseParentChain(null);
+    }
+
+    private BookmarkImpl initBookmark() {
+        if (parent != null) {
+            assert parent.bookmark != null;
+            AtomicInteger parentChildCount = parent.childCounts.computeIfAbsent(name, k -> new AtomicInteger());
+            return BookmarkImpl.from(parent.bookmark, name, parentChildCount.getAndIncrement());
+        } else {
+            return BookmarkImpl.from(null, name, 0);
+        }
     }
 
     @Override
@@ -122,14 +140,28 @@ import java.util.stream.Collectors;
      */
     @Override
     public boolean isNamed(TagName name) {
-        return Objects.equals(name.getLocal(), this.name.getLocal())
-                && Objects.equals(name.getNsUri(), this.name.getNsUri())
-        ;
+        return Objects.equals(name, this.name);
     }
 
     @Override
     public boolean isGenerated() {
         return generated;
+    }
+
+    @Override
+    public boolean isBookmarked(Bookmark bookmark) {
+        Objects.requireNonNull(bookmark, "null bookmark provided");
+        return this.bookmark.equals(bookmark);
+    }
+
+    @Override
+    public boolean isBookmarked(List<Bookmark> bookmarks) {
+        for (Bookmark bookmark : bookmarks) {
+            if (isBookmarked(bookmark)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -167,6 +199,19 @@ import java.util.stream.Collectors;
             if (tag.isNamed(name)) return tag;
         }
         return null;
+    }
+
+    @Override
+    public Bookmark bookmark() {
+        return bookmark;
+    }
+
+    /*package*/ BookmarkImpl getBookmark() {
+        return bookmark;
+    }
+
+    /*package*/ void bookmarkWrittenAs(String newPath) {
+        bookmark.update(newPath);
     }
 
     @Override
