@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -40,9 +41,12 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
 
     private TagImpl currentTag;
     private final CharChunk currentChars = new CharChunk();
-    private LinkedHashMap<String, String> currentNsMapping = new LinkedHashMap<>();
 
-    private Map<String, String> documentNamespaces = new HashMap<>();
+    private final LinkedHashMap<String, String> currentNsMapping = new LinkedHashMap<>();
+
+    private final Map<String, String> documentNamespaces = new HashMap<>();
+
+    private final Map<String, AtomicInteger> writtenBookmarks = new HashMap<>();
 
     public TransformationHandler(
             LinkedHashMap<UpdatingVisitor, Subscribed> visitors,
@@ -61,22 +65,30 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     }
 
     @Override
-    public void startElement(String uri, String localName, String tagName, Attributes attributes) {
-        TagName tagname = TagName.fromSaxArgs(uri, localName, tagName);
-        currentTag = new TagImpl(currentTag, tagname, attributes, currentNsMapping);
+    public void startElement(String uri, String localName, String qName, Attributes attributes) {
+        TagName tagName = TagName.fromSaxArgs(uri, localName, qName);
+        TagImpl parent = currentTag;
+
+        currentTag = new TagImpl(parent, tagName, attributes, currentNsMapping);
         currentNsMapping.clear();
 
         _startElement(currentTag);
     }
 
     private void _startElement(TagImpl tag) {
-        if (tag.isOmitted()) return;
+        if (tag.isOmitted()) {
+            tag.getBookmark().omit();
+            return;
+        }
 
         TagName name = tag.getName();
         for (UpdatingVisitor v : getVisitors(name)) {
             v.startTag(tag);
 
-            if (tag.isOmitted()) return;
+            if (tag.isOmitted()) {
+                tag.getBookmark().omit();
+                return;
+            }
         }
 
         TagImpl wrapper = tag.startWrapWith();
@@ -132,11 +144,14 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
             }
             LOGGER.fine(">");
 
+            tag.bookmarkWrittenAs(getWriteBookmarkPath(tag));
+
             writeChildren(tag);
         } catch (XMLStreamException e) {
             throw new FailedWriting(ERROR_WRITING_TO_OUTPUT_FILE, e);
         }
     }
+
 
     /**
      * Write namespace declarations ("xmlns" pseudo-attributes), existing or added
@@ -145,6 +160,17 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
         for (Map.Entry<String, String> e : tag.getNamespaces().entrySet()) {
             writer.writeNamespace(e.getValue(), e.getKey());
         }
+    }
+
+    private String getWriteBookmarkPath(TagImpl tag) {
+        TagImpl parent = (TagImpl) tag.getParent();
+
+        BookmarkImpl parentBookmark = parent == null ? null : parent.getBookmark();
+
+        String key = BookmarkImpl.pathFrom(parentBookmark, tag.getName(), -1);
+        AtomicInteger counter = writtenBookmarks.computeIfAbsent(key, k -> new AtomicInteger(0));
+
+        return BookmarkImpl.pathFrom(parentBookmark, tag.getName(), counter.getAndIncrement());
     }
 
     /**

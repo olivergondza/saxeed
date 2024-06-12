@@ -100,4 +100,18 @@ public class TagName {
     public TagName inheritNamespace(String name) {
         return new TagName(uri, prefix, name);
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        TagName tagName = (TagName) o;
+        return Objects.equals(local, tagName.local) && Objects.equals(uri, tagName.uri);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(local, uri);
+    }
 }
