@@ -14,9 +14,9 @@ import java.util.Objects;
  * Example:
  *
  * <pre>
- *     `&lt;a>` := uri=""; prefix=""; local="a"
- *     `&lt;a xmlns="XXX">` := uri="XXX"; prefix=""; local="a" (`xmlns` can be declared on a parent tag)
- *     `&lt;x:a xmlns:x="XXX">` := uri="XXX"; prefix="x"; local="a" (`xmlns:x` can be declared on a parent tag)
+ *     `&lt;a&gt;` := uri=""; prefix=""; local="a"
+ *     `&lt;a xmlns="XXX"&gt;` := uri="XXX"; prefix=""; local="a" (`xmlns` can be declared on a parent tag)
+ *     `&lt;x:a xmlns:x="XXX"&gt;` := uri="XXX"; prefix="x"; local="a" (`xmlns:x` can be declared on a parent tag)
  * </pre>
  */
 public class TagName {
