@@ -2,7 +2,6 @@ package com.github.olivergondza.saxeed;
 
 import com.github.olivergondza.saxeed.internal.TransformationHandler;
 
-import javax.xml.stream.XMLStreamWriter;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,7 +36,7 @@ public class TransformationBuilder {
         return this;
     }
 
-    public TransformationHandler build(XMLStreamWriter writer, AutoCloseable closeAction) {
-        return new TransformationHandler(visitors, writer, closeAction);
+    public TransformationHandler build(Saxeed saxeed, Target target) {
+        return new TransformationHandler(saxeed, target, visitors);
     }
 }

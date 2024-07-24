@@ -1,8 +1,8 @@
 package com.github.olivergondza.saxeed;
 
 import com.github.olivergondza.saxeed.ex.FailedWriting;
-import com.github.olivergondza.saxeed.internal.TransformationHandler;
 
+import javax.xml.stream.FactoryConfigurationError;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -16,22 +16,29 @@ import java.nio.file.Path;
 /**
  * Target to write the resulting content into.
  */
-public interface Target {
+public abstract class Target implements AutoCloseable {
+
+    private AutoCloseable close = null;
 
     /**
      * Identify the target for the ease of debugging.
      *
      * Mostly used in error messages to identify the file/stream/etc.
      */
-    String getName();
+    public abstract String getName();
 
-    TransformationHandler getHandler(TransformationBuilder builder, XMLOutputFactory xmlOutputFactory);
+    /**
+     * Create new XMLStreamWriter for the transformation.
+     *
+     * If it is desirable to close any resource allocated, register it by {@link #registerClosable(AutoCloseable)}.
+     */
+    public abstract XMLStreamWriter getWriter(Saxeed saxeed);
 
-    default XMLStreamWriter create(XMLOutputFactory xmlOutputFactory, OutputStream os) {
+    public static XMLStreamWriter createXmlStreamWriter(OutputStream os) {
         try {
-            return xmlOutputFactory.createXMLStreamWriter(os);
-        } catch (XMLStreamException e) {
-            throw new FailedWriting("Unable to create XMLStreamWriter for " + getName(), e);
+            return XMLOutputFactory.newInstance().createXMLStreamWriter(os);
+        } catch (FactoryConfigurationError | XMLStreamException e) {
+            throw new FailedWriting("Unable to create XMLStreamWriter from " + objectId(os), e);
         }
     }
 
@@ -41,12 +48,38 @@ public interface Target {
     }
 
     /**
+     * Register single resource for closing on {@link #close()}.
+     */
+    protected void registerClosable(AutoCloseable close) {
+        if (this.close != null) throw new IllegalStateException("Unclosed resource already present: " + this.close);
+
+        this.close = close;
+    }
+
+    /**
+     * Close method is called on target every time a transformation using a target is completed.
+     *
+     * It closes whatever resource was registered using {@link #registerClosable(AutoCloseable)}, or nothing if not set.
+     */
+    @Override
+    public void close() throws FailedWriting {
+        if (close != null) {
+            try {
+                close.close();
+                close = null;
+            } catch (Exception e) {
+                throw new FailedWriting("Failed closing target " + getName(), e);
+            }
+        }
+    }
+
+    /**
      * Target for a file.
      *
      * The content is flush/closed once the transformation is over. It means that using same File target repeatedly will
      * overwrite its content.
      */
-    class FileTarget implements Target {
+    static class FileTarget extends Target {
         private final File file;
 
         public FileTarget(File file) {
@@ -63,12 +96,13 @@ public interface Target {
         }
 
         @Override
-        public TransformationHandler getHandler(TransformationBuilder builder, XMLOutputFactory xmlOutputFactory) {
+        public XMLStreamWriter getWriter(Saxeed saxeed) {
             OutputStream os = getOutputStream();
-            return builder.build(create(xmlOutputFactory, os), os);
+            registerClosable(os);
+            return createXmlStreamWriter(os);
         }
 
-        private OutputStream getOutputStream() throws FailedWriting {
+        protected /*for testing*/ OutputStream getOutputStream() throws FailedWriting {
             try {
                 return new BufferedOutputStream(new FileOutputStream(file));
             } catch (FileNotFoundException e) {
@@ -82,7 +116,7 @@ public interface Target {
      *
      * The stream is NOT closed.
      */
-    class OutputStreamTarget implements Target {
+    static class OutputStreamTarget extends Target {
         private final OutputStream os;
 
         public OutputStreamTarget(OutputStream os) {
@@ -95,12 +129,12 @@ public interface Target {
         }
 
         @Override
-        public TransformationHandler getHandler(TransformationBuilder builder, XMLOutputFactory xmlOutputFactory) {
-            return builder.build(create(xmlOutputFactory, os), null);
+        public XMLStreamWriter getWriter(Saxeed saxeed) {
+            return createXmlStreamWriter(os);
         }
     }
 
-    class DevNullTarget extends OutputStreamTarget {
+    static class DevNullTarget extends OutputStreamTarget {
 
         private static final OutputStream outputStream = new OutputStream() {
             @Override
@@ -119,7 +153,7 @@ public interface Target {
         }
     }
 
-    class XmlStreamWriterTarget implements Target {
+    static class XmlStreamWriterTarget extends Target {
 
         private final XMLStreamWriter writer;
 
@@ -133,8 +167,8 @@ public interface Target {
         }
 
         @Override
-        public TransformationHandler getHandler(TransformationBuilder builder, XMLOutputFactory __) {
-            return builder.build(writer, null);
+        public XMLStreamWriter getWriter(Saxeed saxeed) {
+            return writer;
         }
     }
 }

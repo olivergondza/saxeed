@@ -30,25 +30,16 @@ import java.util.stream.Collectors;
 public class Saxeed {
 
     private SAXParser saxParser;
-    private XMLOutputFactory xmlOutputFactory;
     private InputSource input;
     private final Map<TransformationBuilder, Target> transformations = new LinkedHashMap<>();
 
     public Saxeed() {
-        setXmlOutputFactory(null); // Initialize with defaults
+
     }
 
     public Saxeed setSaxParser(SAXParser saxParser) {
         this.saxParser = saxParser;
 
-        return this;
-    }
-
-    public Saxeed setXmlOutputFactory(XMLOutputFactory xmlOutputFactory) {
-        this.xmlOutputFactory = xmlOutputFactory != null
-                ? xmlOutputFactory
-                : XMLOutputFactory.newInstance()
-        ;
         return this;
     }
 
@@ -167,7 +158,7 @@ public class Saxeed {
             Target target = trans.getValue();
             TransformationBuilder builder = trans.getKey();
 
-            return target.getHandler(builder, xmlOutputFactory);
+            return builder.build(this, target);
         }).collect(Collectors.toList());
         return new MultiplexingHandler(handlers);
     }

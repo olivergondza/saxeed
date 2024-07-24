@@ -1,7 +1,9 @@
 package com.github.olivergondza.saxeed.internal;
 
+import com.github.olivergondza.saxeed.Saxeed;
 import com.github.olivergondza.saxeed.Subscribed;
 import com.github.olivergondza.saxeed.TagName;
+import com.github.olivergondza.saxeed.Target;
 import com.github.olivergondza.saxeed.UpdatingVisitor;
 import com.github.olivergondza.saxeed.ex.FailedTransforming;
 import com.github.olivergondza.saxeed.ex.FailedWriting;
@@ -36,8 +38,7 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     private final Map<TagName, List<UpdatingVisitor>> visitorCache = new HashMap<>();
 
     private final XMLStreamWriter writer;
-    // A resource to close once done. Can be null
-    private final AutoCloseable closeAction;
+    private final Target target;
 
     private TagImpl currentTag;
     private final CharChunk currentChars = new CharChunk();
@@ -49,13 +50,12 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     private final Map<String, AtomicInteger> writtenBookmarks = new HashMap<>();
 
     public TransformationHandler(
-            LinkedHashMap<UpdatingVisitor, Subscribed> visitors,
-            XMLStreamWriter writer,
-            AutoCloseable closeAction
+            Saxeed saxeed,
+            Target target, LinkedHashMap<UpdatingVisitor, Subscribed> visitors
     ) {
         this.visitors = visitors;
-        this.writer = writer;
-        this.closeAction = closeAction;
+        this.target = target;
+        this.writer = target.getWriter(saxeed);
     }
 
     @Override
@@ -328,19 +328,8 @@ public class TransformationHandler extends DefaultHandler implements AutoCloseab
     @Override
     public void close() throws FailedWriting {
         try {
-            // Make sure the content is written to XMLStreamWriter, no matter if closing the target or not
             writer.flush();
-
-            // Closing XMLStreamWriter never close the target, but it will be un-writable afterward.
-            // So closing writer iff the target should be closed.
-            if (closeAction != null) {
-                // Hackish: Need to close 2 resources, and need to preserve both the eventual exceptions from close() - exactly what
-                // an empty try-with-resources would do. But, the XMLStreamWriter does not implement AutoClosable, so a compromise
-                // approach is needed.
-                try (closeAction) {
-                    writer.close();
-                }
-            }
+            target.close();
         } catch (Exception e) {
             throw new FailedWriting("Failed closing stream", e);
         }

@@ -1,31 +1,38 @@
 package com.github.olivergondza.saxeed;
 
-import com.github.olivergondza.saxeed.internal.TransformationHandler;
+import com.github.olivergondza.saxeed.ex.FailedWriting;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
-import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Verify targets are (not) closed as documented.
  */
 class ClosingTest {
 
-    private static final class ClosingTarget implements Target, AutoCloseable {
+    private static final class ClosingTarget extends Target {
 
-        private final boolean close;
         private final List<Throwable> closes = new ArrayList<>();
+        private final AutoCloseable closeTracker;
 
         public ClosingTarget(boolean close) {
-            this.close = close;
+            closeTracker = close
+                    ? (() -> closes.add(new Throwable()))
+                    : null
+            ;
         }
 
         @Override
@@ -34,14 +41,9 @@ class ClosingTest {
         }
 
         @Override
-        public TransformationHandler getHandler(TransformationBuilder builder, XMLOutputFactory xmlOutputFactory) {
-            XMLStreamWriter writer = create(xmlOutputFactory, new ByteArrayOutputStream());
-            return builder.build(writer, close ? this : null);
-        }
-
-        @Override
-        public void close() throws Exception {
-            this.closes.add(new Throwable());
+        public XMLStreamWriter getWriter(Saxeed saxeed) {
+            registerClosable(closeTracker);
+            return createXmlStreamWriter(new ByteArrayOutputStream());
         }
 
         public void assertClosedTimes(int expected) {
@@ -63,30 +65,29 @@ class ClosingTest {
     }
 
     @Test
-    void close() {
-        ClosingTarget closeMe = new ClosingTarget(true);
-        new Saxeed().setInputString("<saxeed/>")
-                .addTransformation(new TransformationBuilder(), closeMe)
-                .transform();
+    void closeFileTarget() throws Exception {
+        final boolean[] closed = {false};
+        Path out = Files.createTempFile("saxeed", getClass().getName());
+        Target.FileTarget target = new Target.FileTarget(out) {
+            @Override
+            protected OutputStream getOutputStream() throws FailedWriting {
+                return new OutputStream() {
+                    @Override
+                    public void write(int b) throws IOException {
 
-        closeMe.assertClosedTimes(1);
+                    }
 
-        closeMe = new ClosingTarget(true);
-        new Saxeed().setInputString("<saxeed/>")
-                .addTransformation(new TransformationBuilder(), closeMe)
-                .addTransformation(new TransformationBuilder(), closeMe)
-                .addTransformation(new TransformationBuilder(), closeMe)
-                .transform();
+                    @Override
+                    public void close() throws IOException {
+                        closed[0] = true;
+                    }
+                };
+            }
+        };
 
-        closeMe.assertClosedTimes(3);
-    }
+        new Saxeed().setInputString("<saxeed/>").addTransformation(new TransformationBuilder(), target).transform();
 
-    @Test
-    void doNotClose() {
-        ClosingTarget doNotCloseMe = new ClosingTarget(false);
-        new Saxeed().setInputString("<saxeed/>").addTransformation(new TransformationBuilder(), doNotCloseMe).transform();
-
-        doNotCloseMe.assertClosedTimes(0);
+        assertTrue(closed[0]);
     }
 
     @Test
@@ -102,6 +103,22 @@ class ClosingTest {
         new Saxeed().setInputString("<saxeed/>").addTransformation(new TransformationBuilder(), baos).transform();
 
         baos.write("</open>".getBytes());
+
+        assertEquals("<open><saxeed></saxeed></open>", baos.toString());
+    }
+
+    @Test
+    void doNotCloseXmlStreamWriterTarget() throws Exception {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        XMLStreamWriter writer = Mockito.spy(Target.createXmlStreamWriter(baos));
+        Mockito.doThrow(new AssertionError("Stream closed"))
+                .when(writer).close();
+
+        Target.XmlStreamWriterTarget target = new Target.XmlStreamWriterTarget(writer);
+
+        writer.writeStartElement("open");
+        new Saxeed().setInputString("<saxeed/>").addTransformation(new TransformationBuilder(), target).transform();
+        writer.writeEndElement();
 
         assertEquals("<open><saxeed></saxeed></open>", baos.toString());
     }
