@@ -149,6 +149,18 @@ class SaxeedTest {
         );
 
         assertEquals("<a>keepkeep<child></child><another><foo></foo>keep</another>keep</a>", actual);
+
+        // Verify unwrapped parent/root tag still shows as parent to its children
+        actual = Util.transform("<r><ch/></r>", start -> {
+            if (start.isNamed("r")) {
+                start.unwrap();
+            } else if (start.isNamed("ch")) {
+                assertEquals("r", start.getParent().getName().getLocal());
+                assertEquals("r", start.getParent("r").getName().getLocal());
+            }
+        }, "r", "ch");
+
+        assertEquals("<ch></ch>", actual);
     }
 
     @Test
