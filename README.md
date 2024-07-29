@@ -1,6 +1,6 @@
-# Sufficiently Advanced XML Eventing Editor
+# Sufficiently Advanced XML Eventing EDitor
 
-Your user-friendly, namespace aware SAX wrapper to transform XML files easily, with memory consumption in mind.
+Your user-friendly, namespace aware tool to transform XML files easily, with memory consumption in mind.
 
 [![Saxeed CI](https://github.com/olivergondza/saxeed/actions/workflows/ci.yaml/badge.svg)](https://github.com/olivergondza/saxeed/actions/workflows/ci.yaml)
 [![Maven Central Version](https://img.shields.io/maven-central/v/com.github.olivergondza/saxeed)](https://central.sonatype.com/artifact/com.github.olivergondza/saxeed)
@@ -8,7 +8,7 @@ Your user-friendly, namespace aware SAX wrapper to transform XML files easily, w
 
 ## Spirit
 
-Saxeed, a SAX wrapper, stream process XML input performing modifications to its outputs based on predefined transformation(s).
+Saxeed, a SAX wrapper, traverses XML input document performing predefined transformations, and writes the resulting XML document to declared output.
 
 It accepts the constraints of "streaming" (or "eventing") approach — elements are visited one-by-one with no option to move around the stream.
 This is a tradeoff we accept in return for predictable memory footprint.
@@ -20,7 +20,7 @@ Saxeed strives to add as much convenience on top of plain old SAX, while adding 
 
 ### Capabilities
 
-Each tag visitor do the following: 
+Each tag visitor can do the following: 
 
 | operation / event                       | Tag Start              | Tag End                | Text Content |
 |-----------------------------------------|------------------------|------------------------|--------------|
