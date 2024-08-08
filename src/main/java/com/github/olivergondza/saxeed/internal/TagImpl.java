@@ -177,12 +177,18 @@ import java.util.stream.Collectors;
 
     @Override
     public Tag getParent(String name) {
-        return parent != null && parent.isNamed(name) ? parent : null;
+        return parent != null && parent.isNamed(name)
+                ? parent
+                : null
+        ;
     }
 
     @Override
     public Tag getParent(TagName name) {
-        return parent != null && parent.isNamed(name) ? parent : null;
+        return parent != null && parent.isNamed(name)
+                ? parent
+                : null
+        ;
     }
 
     @Override
